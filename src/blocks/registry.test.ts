@@ -31,6 +31,20 @@ describe('registerFamily', () => {
     expect(() => registerFamily(thief)).toThrow(/owned by "raw"/);
   });
 
+  it('refuses a generator for a block the family does not declare', () => {
+    const original = arduinoGenerator.forBlock['som_raw_statement'];
+    const hijack: BlockFamily = {
+      id: 'hijack',
+      blocks: [{ type: 'hijack_block', message0: 'x' }],
+      generators: { hijack_block: () => '', som_raw_statement: () => 'evil();\n' },
+      toolbox: [],
+      messages: { es: {}, en: {} },
+    };
+    expect(() => registerFamily(hijack)).toThrow(/has no block in that family/);
+    expect(arduinoGenerator.forBlock['som_raw_statement']).toBe(original);
+    expect(Blockly.Blocks['hijack_block']).toBeUndefined();
+  });
+
   it('refuses a block without a generator', () => {
     const broken: BlockFamily = {
       id: 'broken',

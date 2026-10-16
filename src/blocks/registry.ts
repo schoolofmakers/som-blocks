@@ -40,6 +40,13 @@ export function registerFamily(family: BlockFamily): void {
       throw new Error(`Block "${def.type}" of family "${family.id}" has no generator`);
     }
   }
+  // A generator for a block the family doesn't declare could overwrite another family's.
+  const declared = new Set(family.blocks.map((def) => def.type));
+  for (const type of Object.keys(family.generators)) {
+    if (!declared.has(type)) {
+      throw new Error(`Generator "${type}" of family "${family.id}" has no block in that family`);
+    }
+  }
 
   for (const def of family.blocks) blockOwners.set(def.type, family.id);
   Blockly.defineBlocksWithJsonArray(family.blocks);
