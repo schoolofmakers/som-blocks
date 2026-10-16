@@ -35,3 +35,5 @@ docker run -d --platform linux/amd64 --name duinoapp-server --restart unless-sto
   -e SERVER_INFO_NAME="SoM Compile (local)" -e SERVER_INFO_OWNER="School of Makers" -e SERVER_INFO_COUNTRY=CL \
   duinoapp/duinoapp-server:latest
 ```
+
+The editor's **Compile** button posts to `VITE_COMPILE_SERVER_URL` (build-time, default `http://127.0.0.1:3031`); students can override it from the **Server** popover (saved in `localStorage` as `som.compileServerUrl`). Real compile check against a running server: `LIVE_COMPILE_URL=http://127.0.0.1:3031 pnpm test:e2e --grep @live`.
