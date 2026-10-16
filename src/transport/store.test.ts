@@ -123,6 +123,15 @@ describe('transport store', () => {
     expect(port.closeCalls).toBe(1);
   });
 
+  it('reconnecting to the same port right after disconnect waits for the close', async () => {
+    await useTransportStore.getState().connect('uno');
+    const closing = useTransportStore.getState().disconnect(); // not awaited, like a click
+    await useTransportStore.getState().connect('uno', { port });
+    await closing;
+    expect(useTransportStore.getState().status).toBe('connected');
+    expect(port.closeCalls).toBe(1);
+  });
+
   it('ignores a second connect while one is in flight', async () => {
     const first = useTransportStore.getState().connect('uno');
     await useTransportStore.getState().connect('uno');

@@ -139,12 +139,15 @@ describe('WebSerialTransport', () => {
   });
 
   it('keeps the write queue alive after a failed write', async () => {
-    const { transport } = await openTransport();
+    const { port, transport } = await openTransport();
+    port.nextWriteError = new DOMException('transfer failed', 'NetworkError');
+    const failed = transport.write(new Uint8Array([1]));
+    const queued = transport.write(new Uint8Array([2]));
+    await expect(failed).rejects.toMatchObject({ code: 'write-failed', detail: 'transfer failed' });
+    await queued;
+    await transport.write(new Uint8Array([3]));
+    expect(port.written.map((chunk) => [...chunk])).toEqual([[2], [3]]);
     await transport.close();
-    await expect(transport.write(new Uint8Array([1]))).rejects.toMatchObject({ code: 'not-open' });
-    const { port: port2, transport: again } = await openTransport();
-    await again.write(new Uint8Array([9]));
-    expect(port2.written).toHaveLength(1);
   });
 
   it('reports an unplug once, closes cleanly and fails a pending write instead of hanging', async () => {

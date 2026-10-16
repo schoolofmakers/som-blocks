@@ -16,6 +16,8 @@ export class FakeSerialPort extends EventTarget implements SerialPortLike {
   openError: Error | undefined;
   /** When set, each sink write waits for this before completing. */
   writeGate: Promise<void> | undefined;
+  /** When set, the next sink write fails with this error (then it is cleared). */
+  nextWriteError: Error | undefined;
   activeWrites = 0;
   maxConcurrentWrites = 0;
   private controller: ReadableStreamDefaultController<Uint8Array> | undefined;
@@ -36,21 +38,7 @@ export class FakeSerialPort extends EventTarget implements SerialPortLike {
     if (this.readable) throw new DOMException('The port is already open.', 'InvalidStateError');
     this.baudRate = baudRate;
     this.readable = this.newReadable();
-    this.writable = new WritableStream<Uint8Array>({
-      write: (chunk) =>
-        new Promise<void>((resolve, reject) => {
-          this.activeWrites += 1;
-          this.maxConcurrentWrites = Math.max(this.maxConcurrentWrites, this.activeWrites);
-          this.rejectPendingWrite = reject;
-          const finish = () => {
-            this.activeWrites -= 1;
-            this.written.push(chunk);
-            resolve();
-          };
-          if (this.writeGate) void this.writeGate.then(finish);
-          else finish();
-        }),
-    });
+    this.writable = this.newWritable();
   }
 
   async close(): Promise<void> {
@@ -85,6 +73,33 @@ export class FakeSerialPort extends EventTarget implements SerialPortLike {
     this.controller?.error(lost);
     this.rejectPendingWrite?.(lost);
     if (withEvent) this.dispatchEvent(new Event('disconnect'));
+  }
+
+  private newWritable(): WritableStream<Uint8Array> {
+    return new WritableStream<Uint8Array>({
+      write: (chunk) =>
+        new Promise<void>((resolve, reject) => {
+          this.activeWrites += 1;
+          this.maxConcurrentWrites = Math.max(this.maxConcurrentWrites, this.activeWrites);
+          this.rejectPendingWrite = reject;
+          if (this.nextWriteError) {
+            const error = this.nextWriteError;
+            this.nextWriteError = undefined;
+            this.activeWrites -= 1;
+            // Like a recoverable error in Chrome: this stream errors, the port hands out a new one.
+            this.writable = this.newWritable();
+            reject(error);
+            return;
+          }
+          const finish = () => {
+            this.activeWrites -= 1;
+            this.written.push(chunk);
+            resolve();
+          };
+          if (this.writeGate) void this.writeGate.then(finish);
+          else finish();
+        }),
+    });
   }
 
   private newReadable(): ReadableStream<Uint8Array> {

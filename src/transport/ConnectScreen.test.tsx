@@ -97,6 +97,12 @@ describe('ConnectButton', () => {
     expect(screen.getByRole('dialog', { name: 'Conectar tu placa' })).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(button).toHaveFocus();
+
+    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(button).toHaveFocus();
   });
 
   it('reflects the connected status', async () => {

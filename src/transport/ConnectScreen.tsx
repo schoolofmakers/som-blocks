@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { boardLabel, getBoard } from '../boards/registry';
 import { useBoardStore } from '../boards/store';
 import { t, type Lang, type MessageKey } from '../i18n/messages';
@@ -30,19 +30,27 @@ export function ConnectButton({ lang }: ConnectProps) {
   const status = useTransportStore((state) => state.status);
   const [open, setOpen] = useState(false);
   const panelId = useId();
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Closing unmounts the focused control: hand focus back to the header button.
+  const close = useCallback(() => {
+    setOpen(false);
+    buttonRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') close();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  }, [open, close]);
 
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
         data-testid="connect-button"
         aria-expanded={open}
@@ -56,9 +64,9 @@ export function ConnectButton({ lang }: ConnectProps) {
       {open && (
         <div
           id={panelId}
-          className="fixed inset-x-4 top-4 z-20 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96"
+          className="fixed inset-x-4 top-4 z-20 max-h-[calc(100dvh-2rem)] overflow-y-auto sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96"
         >
-          <ConnectScreen lang={lang} onClose={() => setOpen(false)} />
+          <ConnectScreen lang={lang} onClose={close} />
         </div>
       )}
     </div>

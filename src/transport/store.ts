@@ -56,6 +56,9 @@ function toConnectionError(error: unknown): ConnectionError {
 // Bumped by every connect/disconnect so a slow connect that lost the race closes its port
 // instead of overwriting newer state.
 let attempt = 0;
+// The close started by the last disconnect(): the next connect waits for it, so reopening the
+// same (remembered) port never races the old connection that still holds it.
+let pendingClose: Promise<void> = Promise.resolve();
 
 export const useTransportStore = create<TransportState>()((set, get) => ({
   status: 'disconnected',
@@ -77,6 +80,7 @@ export const useTransportStore = create<TransportState>()((set, get) => ({
     let transport: WebSerialTransport | undefined;
     try {
       const port = await pendingPort;
+      await pendingClose;
       // Reconnecting (e.g. to a remembered port) replaces any open connection.
       if (previous) await previous.close();
       transport = new WebSerialTransport(port);
@@ -120,6 +124,8 @@ export const useTransportStore = create<TransportState>()((set, get) => ({
     attempt += 1;
     const { transport } = get();
     set({ status: 'disconnected', transport: null, portLabel: null, error: null });
-    await transport?.close();
+    const closing = transport?.close() ?? Promise.resolve();
+    pendingClose = closing;
+    await closing;
   },
 }));
