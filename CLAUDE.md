@@ -9,9 +9,9 @@ Browser blocks editor for School of Makers classes (Chile, ages 10–14). Studen
 ## Structure
 1. `CLAUDE.md` — this navigation guide
 2. `_config/` — durable rules: build discipline, agentic practices, standards, architecture, boards, i18n. Read before working.
-3. `src/` — Vite + React + TypeScript PWA (created by the first PRs): `blocks/` (block families + generators), `boards/` (board registry), `compile/` (server client), `transport/` (Web Serial / Web Bluetooth), `flash/` (esptool-js, avrgirl, BLE OTA), `ui/`, `i18n/`
-4. `firmware/` — SoM resident firmware for the ESP32-C3 (BLE OTA + serial service) and the `SomLink` Arduino library the generator links into student sketches
-5. `server/` — compile server: Dockerfile + config for the rebuilt duinoapp-server image (Fly.io)
+3. `src/` — Vite + React + TypeScript PWA (created by the first PRs): `blocks/` (block families + generators), `boards/` (board registry), `compile/` (server client), `transport/` (Web Serial USB / WiFi relay), `flash/` (esptool-js, avrgirl, relay OTA), `ui/`, `i18n/`
+4. `firmware/` — SoM resident firmware for the ESP32-C3 (WiFi provisioning, relay link, OTA, serial bridge) and the `SomLink` Arduino library the generator links into student sketches
+5. `server/` — `compile/` (Dockerfile + fly.toml for the rebuilt duinoapp-server image) and `relay/` (device relay for WiFi OTA + serial over WiFi), both on Fly.io
 6. `docs/` — ADRs (`docs/adr/`), brainstorms, reference notes
 7. `README.md` — dev commands and how to run the compile server locally
 

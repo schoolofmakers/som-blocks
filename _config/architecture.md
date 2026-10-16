@@ -14,17 +14,19 @@ Static single-page editor (Vite/TS/Blockly) → HTTPS JSON → compile server (d
 - The 2021 Docker Hub image lacks ESP32-C3 (esp32 core 1.0.6). We build our own image from current `main` (node 20, installs latest esp32 core 3.3.x which includes the C3 and ESP-NOW). Image lives in `server/`.
 
 ## Transports (how the browser reaches a board)
-One `Transport` interface (`open/close/write/onData/signals`) with three implementations; flashers and the serial monitor only see the interface.
-- `WebSerialTransport` — desktop Chrome/Edge (Web Serial). Not available on any mobile browser.
-- `WebBluetoothTransport` — Android Chrome and desktop Chrome/Edge (Web Bluetooth). Not available in iOS Safari; iOS needs a Capacitor shell with a native BLE plugin (v2).
-- `CapacitorBleTransport` (v2) — same interface inside a store-installed shell for iPad/iPhone.
-Browser support matrix is shown to the user on the connect screen; unsupported combinations get an explicit message, never a silent failure.
+One `Transport` interface (`open/close/write/onData`) with two implementations; flashers and the serial monitor only see the interface.
+- `WebSerialTransport` — USB on desktop Chrome/Edge (Web Serial). Not available on any mobile browser. Fast path and rescue path.
+- `RelayTransport` — WiFi, through our relay service (below). Works from ANY browser including iOS Safari, because the page only talks HTTPS to our server; the board talks to the same server. This is the mobile path.
+Browser support is shown on the connect screen; unsupported combinations get an explicit message, never a silent failure.
 
-## Over-the-air upload to the ESP32-C3 (mobile path)
-- The C3 runs a small **SoM resident firmware** (our code, MIT): BLE GATT service with an OTA characteristic + a serial-over-BLE characteristic for the monitor. Flashed once over USB from a desktop (or pre-flashed on boards we hand out).
-- Partition layout: `factory` = SoM resident firmware; `ota_0` = the student's sketch. The generator always links the student sketch with a tiny `SomLink` library that (a) exposes the same BLE OTA + serial characteristics so the board stays updatable from the phone, and (b) on a long BOOT-button press or a BLE command reboots into `factory` as a recovery path.
-- Flow from a phone: compile on the server → receive the `ota_0` app image → send over BLE in chunks (expect ~15–25 KB/s, so a 300 KB sketch takes ~15–20 s; show progress) → board verifies and reboots into the new sketch. The same flow works from a desktop over Web Bluetooth, and USB Web Serial stays as the fast/rescue path.
-- WiFi OTA (ArduinoOTA / HTTP upload) is a later option when a classroom hotspot exists; BLE needs no network.
+## Over-the-air upload to the ESP32-C3 over WiFi (decision 2026-10-16, replaces an earlier BLE idea)
+Why a relay and not direct LAN: the editor is served over HTTPS, and browsers block an HTTPS page from calling `http://192.168.x.x` (mixed content + Private Network Access). So the phone cannot POST firmware to the board directly. The board pulls instead.
+- **Relay service** (`server/relay`, our code, MIT, tiny Node/Hono): the board keeps a WebSocket to it; the editor calls it over HTTPS. Endpoints: device registers with a claim code; editor claims a device by code; editor posts a build id → relay tells the board → board downloads the image over HTTPS from the relay and flashes it with `Update`; board streams serial lines up and accepts lines down (monitor over WiFi).
+- **SoM resident firmware** on the C3 `factory` partition: WiFi provisioning (credentials entered once over USB from the editor, or via a captive portal on first boot), relay connection, OTA receive into `ota_0`, claim code shown in the serial monitor and derivable from the MAC. Long BOOT-press reboots to `factory` as recovery.
+- **`SomLink` library** linked by the generator into every C3 sketch: keeps the relay connection + OTA + serial bridge alive inside the student's program, so the next upload from the phone works without touching USB.
+- Flow from a phone: compile on the compile server → editor posts the image to the relay as a build → relay notifies the claimed board → board downloads (~200–400 KB in a few seconds on WiFi) → verifies → reboots into the new sketch. Progress and the board's serial output appear in the editor.
+- Requires the board to be on a WiFi network with internet (school WiFi or a phone hotspot). Offline-lab variant: when the editor itself is served over plain HTTP on a lab laptop (local Docker setup), a direct `http://<board-ip>/update` push is allowed by the browser and can be offered as a shortcut; same board firmware.
+- Bluetooth is not used for upload. BLE remains available as a *block family* for student projects (C3 is BLE-only, no Classic).
 
 ## Upload paths (browser, USB)
 - AVR (UNO, NANO old bootloader, future SoM NANO-C): `avrgirl-arduino` browser build (MIT), stk500v1 over Web Serial. Needs `window.Buffer` (buffer@6) and `window.process` (process@0.11) injected before load. Board profile `uno` / `nano`.

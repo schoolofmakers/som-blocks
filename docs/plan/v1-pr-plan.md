@@ -3,7 +3,7 @@
 Each line is one minimal PR off `staging`, shipped through `/greploop` to 5/5. Order matters within a track; tracks A and B run in parallel.
 
 ## Track A — compile server (`server/`)
-A1. Dockerfile + fly.toml building duinoapp-server from pinned upstream commit; esp32 core 3.3.x, esp8266, avr. Evidence: `/v3/info/boards` lists `esp32:esp32:esp32c3`. (ops-heavy; image is several GB)
+A1. `server/compile`: Dockerfile + fly.toml building duinoapp-server from pinned upstream commit; esp32 core 3.3.x, esp8266, avr. Evidence: `/v3/info/boards` lists `esp32:esp32:esp32c3`. (ops-heavy; image is several GB)
 A2. Smoke test script: compile blink for `esp32c3`, `uno`, `nano:cpu=atmega328old`; assert firmware present. Runs in CI against the deployed server.
 
 ## Track B — editor skeleton
@@ -25,11 +25,12 @@ C1. `wifi` family: connect to network, IP, HTTP GET/POST simple blocks (golden t
 C2. `espnow` family per the name-based broadcast model in `_config/architecture.md`: my name is / send to / send to everyone / when message arrives from. Two-board classroom demo as evidence.
 C3. `ble` family (BLE only): advertise name, notify value, on write; phone-visible via nRF Connect as evidence.
 
-## Track D — mobile path (after B7/B8, C3)
-D1. `firmware/`: SoM resident firmware (factory partition) with BLE OTA + BLE serial service; partition table; flash-once script.
-D2. `SomLink` Arduino library linked into every C3 sketch by the generator (keeps OTA/serial reachable; recovery reboot to factory).
-D3. `WebBluetoothTransport` + BLE OTA flasher with progress; works from Android Chrome. Evidence: phone video uploading a sketch to a C3.
-D4. Mobile layout pass for Blockly (touch targets, toolbox drawer, zoom controls).
+## Track D — mobile path over WiFi (after B7/B8, C1)
+D1. `server/relay`: Hono + WebSocket service; device register/claim by code, build upload + download, serial up/down; fly.toml; tests with a fake device.
+D2. `firmware/resident`: SoM resident firmware for the C3 factory partition (WiFi provisioning over USB serial + captive portal fallback, relay link, OTA into `ota_0`, claim code, BOOT-press recovery); partition table; flash-once script. Evidence: video of an OTA from the relay.
+D3. `firmware/SomLink` Arduino library linked by the generator into every C3 sketch (relay link + OTA + serial bridge kept alive); golden tests show the include + setup/loop hooks.
+D4. `RelayTransport` + relay OTA flasher with progress in the editor; works from Android Chrome and iOS Safari. Evidence: phone video uploading a sketch over WiFi.
+D5. Mobile layout pass for Blockly (touch targets, toolbox drawer, zoom controls).
 
 ## Explicitly out of v1
-Accounts (teacher/student), starter projects by URL, progress events, iOS Capacitor shell, extra languages beyond es/en, sensors/actuators/display families, SoM NANO-C board entry.
+Accounts (teacher/student), starter projects by URL, progress events, extra languages beyond es/en, sensors/actuators/display families, SoM NANO-C board entry.
