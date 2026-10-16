@@ -31,3 +31,13 @@ test('the server address can be changed from the settings popover', async ({ pag
     'https://compile.example.cl',
   );
 });
+
+test('the settings popover stays inside a phone-width viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/?lang=en');
+  await page.getByText('Server', { exact: true }).click();
+  const box = await page.locator('details[open] form').boundingBox();
+  if (!box) throw new Error('settings form has no box');
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(360);
+});

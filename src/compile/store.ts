@@ -38,6 +38,8 @@ export interface CompileState {
   result: CompileResult | null;
   error: CompileError | null;
   durationMs: number | null;
+  /** The server the last compile went to (errors name it, even if the setting changed). */
+  requestUrl: string | null;
   serverUrl: string;
   /** Saves a custom server URL; an empty string goes back to the default. */
   setServerUrl: (url: string) => void;
@@ -50,6 +52,7 @@ export const useCompileStore = create<CompileState>()((set, get) => ({
   result: null,
   error: null,
   durationMs: null,
+  requestUrl: null,
   serverUrl: readStoredUrl()?.trim() || defaultServerUrl(),
 
   setServerUrl: (url) => {
@@ -60,10 +63,11 @@ export const useCompileStore = create<CompileState>()((set, get) => ({
 
   run: async (req) => {
     if (get().status === 'compiling') return;
-    set({ status: 'compiling', log: '', result: null, error: null, durationMs: null });
+    const requestUrl = get().serverUrl;
+    set({ status: 'compiling', log: '', result: null, error: null, durationMs: null, requestUrl });
     const started = performance.now();
     try {
-      const result = await compile(get().serverUrl, req);
+      const result = await compile(requestUrl, req);
       set({
         status: 'ok',
         result,

@@ -97,7 +97,7 @@ describe('LogPanel', () => {
     act(() => {
       useCompileStore.setState({
         status: 'error',
-        serverUrl: 'http://x.test',
+        requestUrl: 'http://x.test',
         error: new CompileError(cause, 'Invalid FQBN'),
         durationMs: 100,
       });

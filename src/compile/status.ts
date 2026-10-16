@@ -15,11 +15,11 @@ function seconds(ms: number | null): string {
   return ((ms ?? 0) / 1000).toFixed(1);
 }
 
-type StatusInput = Pick<CompileState, 'status' | 'result' | 'error' | 'durationMs' | 'serverUrl'>;
+type StatusInput = Pick<CompileState, 'status' | 'result' | 'error' | 'durationMs' | 'requestUrl'>;
 
 /** The one-line status above the log, in the student's language. */
 export function statusLine(state: StatusInput, lang: Lang): string {
-  const { status, result, error, durationMs, serverUrl } = state;
+  const { status, result, error, durationMs, requestUrl } = state;
   if (status === 'compiling') return t('UI_COMPILE_RUNNING', lang);
   if (status === 'ok' && result) {
     const bytes = firmwareBytes(result);
@@ -35,7 +35,7 @@ export function statusLine(state: StatusInput, lang: Lang): string {
     const message = format(t(ERROR_KEYS[error.cause], lang), {
       message: error.message,
       seconds: Math.round(DEFAULT_COMPILE_TIMEOUT_MS / 1000),
-      url: serverUrl,
+      url: requestUrl ?? '',
     });
     const after = format(t('UI_COMPILE_ERR_DURATION', lang), { seconds: seconds(durationMs) });
     return `${message} (${after})`;

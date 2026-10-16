@@ -17,7 +17,7 @@ export function LogPanel({ lang }: LogPanelProps) {
   const result = useCompileStore((s) => s.result);
   const error = useCompileStore((s) => s.error);
   const durationMs = useCompileStore((s) => s.durationMs);
-  const serverUrl = useCompileStore((s) => s.serverUrl);
+  const requestUrl = useCompileStore((s) => s.requestUrl);
   const logRef = useRef<HTMLPreElement>(null);
   // Remember *which* log was copied, so a new compile resets the button by itself.
   const [copiedLog, setCopiedLog] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export function LogPanel({ lang }: LogPanelProps) {
         data-testid="compile-status"
         className={`mb-2 text-sm ${tone}`}
       >
-        {statusLine({ status, result, error, durationMs, serverUrl }, lang)}
+        {statusLine({ status, result, error, durationMs, requestUrl }, lang)}
       </p>
       <pre
         ref={logRef}

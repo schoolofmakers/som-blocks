@@ -38,9 +38,11 @@ export function ServerSettings({ lang }: ServerSettingsProps) {
       <summary className="cursor-pointer rounded-lg border border-border px-3 py-2 text-sm">
         {t('UI_SERVER_SETTINGS', lang)}
       </summary>
+      {/* Left-anchored on phones, where the wrapped header puts the controls at the left
+          edge; right-anchored once the header fits on one line. */}
       <form
         onSubmit={save}
-        className="absolute right-0 z-10 mt-2 flex w-72 flex-col gap-2 rounded-lg border border-border bg-surface p-3 shadow-lg"
+        className="absolute left-0 sm:right-0 sm:left-auto z-10 mt-2 flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-lg border border-border bg-surface p-3 shadow-lg"
       >
         <label className="flex flex-col gap-1 text-xs text-muted">
           {t('UI_SERVER_URL', lang)}
