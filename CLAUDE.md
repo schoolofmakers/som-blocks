@@ -21,5 +21,15 @@ Browser blocks editor for School of Makers classes (Chile, ages 10–14). Studen
 - Project-specific rules: `_config/standards.md` · `_config/architecture.md` · `_config/boards.md` · `_config/i18n.md`.
 - Prior art: the validated prototype and the reverse-engineering of hello-blocks.com live in `~/Documents/som-blocks-poc` (branch `prototype/som-blocks-poc`). Copy nothing from Hello Blocks' recovered source; the DuinoApp server API contract is documented in `_config/architecture.md`.
 
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (`schoolofmakers/som-blocks`, via the `gh` CLI); the Wayfinder map is a `wayfinder:map` issue with sub-issue tickets. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` + `docs/adr/` (created lazily by `/domain-modeling`). See `docs/agents/domain.md`.
+
 ## Build discipline (every code change)
 Plan → slice into minimal PRs → branch off `staging` → implement one unit + tests (per `_config/agentic-practices.md`) → `/greploop` to 5/5 → squash-merge. Below 5/5, split the PR. See `_config/greploop-method.md`. No PR is "done" without evidence: test output in the description, screenshots for UI, and for flashing changes a photo/video or serial log from a real board.
