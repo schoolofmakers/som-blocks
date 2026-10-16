@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+
+/* Design tokens. Components use the Tailwind utilities mapped below (bg-bg, text-fg, ...),
+   never raw colours, so dark mode is a token swap. */
+:root {
+  --som-bg: #ffffff;
+  --som-surface: #f8fafc;
+  --som-fg: #0f172a;
+  --som-muted: #475569;
+  --som-border: #cbd5e1;
+  --som-accent: #0e7490;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --som-bg: #0b1120;
+    --som-surface: #111827;
+    --som-fg: #e2e8f0;
+    --som-muted: #94a3b8;
+    --som-border: #334155;
+    --som-accent: #22d3ee;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--som-bg);
+  --color-surface: var(--som-surface);
+  --color-fg: var(--som-fg);
+  --color-muted: var(--som-muted);
+  --color-border: var(--som-border);
+  --color-accent: var(--som-accent);
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--som-bg);
+  color: var(--som-fg);
+  font-family: system-ui, sans-serif;
+}

@@ -1,0 +1,10 @@
+dist
+dev-dist
+coverage
+playwright-report
+test-results
+pnpm-lock.yaml
+server
+_config
+docs
+*.md
