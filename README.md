@@ -14,7 +14,8 @@ pnpm dev            # Vite dev server on http://localhost:5173 (?lang=en for Eng
 pnpm lint           # ESLint
 pnpm format         # Prettier (write); pnpm format:check in CI
 pnpm typecheck      # tsc -b, strict + noUncheckedIndexedAccess
-pnpm test           # Vitest unit tests (jsdom)
+pnpm test           # Vitest unit tests (jsdom), incl. generator golden tests
+pnpm test:golden:update  # rewrite src/blocks/__golden__/fixtures/*.ino from the generator (review the diff!)
 pnpm build          # typecheck + production build with PWA manifest and service worker into dist/
 pnpm preview        # serve dist/
 pnpm test:e2e       # Playwright smoke (Chromium) against a fresh build served by `vite preview`

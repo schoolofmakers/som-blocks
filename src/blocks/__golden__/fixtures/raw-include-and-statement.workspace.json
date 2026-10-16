@@ -1,0 +1,36 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_raw_include",
+        "id": "inc1",
+        "x": 20,
+        "y": 20,
+        "fields": { "HEADER": "Wire.h" },
+        "next": {
+          "block": {
+            "type": "som_raw_include",
+            "id": "inc2",
+            "fields": { "HEADER": "#include <Wire.h>" },
+            "next": {
+              "block": {
+                "type": "som_raw_include",
+                "id": "inc3",
+                "fields": { "HEADER": "\"config.h\"" },
+                "next": {
+                  "block": {
+                    "type": "som_raw_statement",
+                    "id": "stmt1",
+                    "icons": { "comment": { "text": "Saluda por el puerto serie" } },
+                    "fields": { "CODE": "Serial.println(\"hola\");" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

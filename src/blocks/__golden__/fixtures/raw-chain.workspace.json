@@ -1,0 +1,21 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_raw_statement",
+        "id": "stmt1",
+        "x": 20,
+        "y": 20,
+        "fields": { "CODE": "digitalWrite(13, HIGH);" },
+        "next": {
+          "block": {
+            "type": "som_raw_statement",
+            "id": "stmt2",
+            "fields": { "CODE": "delay(500);" }
+          }
+        }
+      }
+    ]
+  }
+}

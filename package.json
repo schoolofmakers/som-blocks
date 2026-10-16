@@ -17,11 +17,13 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:golden:update": "UPDATE_GOLDEN=1 vitest run src/blocks/__golden__",
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "blockly": "13.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

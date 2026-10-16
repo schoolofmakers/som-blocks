@@ -40,3 +40,10 @@ body {
   color: var(--som-fg);
   font-family: system-ui, sans-serif;
 }
+
+/* Tailwind's preflight sets `svg { display: block }`, and a CSS rule beats the SVG
+   `display="none"` attribute Blockly uses to hide nested <svg> parts (e.g. the flyout
+   scrollbar after the flyout closes). Give the attribute back its meaning inside Blockly. */
+.injectionDiv svg[display='none'] {
+  display: none;
+}
