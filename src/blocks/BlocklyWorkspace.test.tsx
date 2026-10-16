@@ -53,4 +53,81 @@ describe('BlocklyWorkspace', () => {
     expect(onCodeChange).toHaveBeenCalledWith(expect.stringContaining('void loop()'));
     expect(Blockly.getMainWorkspace()).toBe(workspace);
   });
+
+  describe('project load / autosave props', () => {
+    const raw = (code: string) => ({
+      blocks: {
+        languageVersion: 0,
+        blocks: [{ type: 'som_raw_statement', x: 0, y: 0, fields: { CODE: code } }],
+      },
+    });
+
+    it('loads the given workspace without echoing it back as a change', async () => {
+      const onWorkspaceChange = vi.fn();
+      const onCodeChange = vi.fn();
+      render(
+        <BlocklyWorkspace
+          lang="es"
+          load={{ key: 'a:1', state: raw('first();') }}
+          onCodeChange={onCodeChange}
+          onWorkspaceChange={onWorkspaceChange}
+        />,
+      );
+      await waitFor(() =>
+        expect(onCodeChange).toHaveBeenLastCalledWith(expect.stringContaining('first();')),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(onWorkspaceChange).not.toHaveBeenCalled();
+    });
+
+    it('emits the serialized workspace on every non-UI change', async () => {
+      const onWorkspaceChange = vi.fn();
+      render(<BlocklyWorkspace lang="es" onWorkspaceChange={onWorkspaceChange} />);
+      Blockly.serialization.blocks.append(
+        { type: 'som_raw_statement', fields: { CODE: 'edit();' } },
+        Blockly.getMainWorkspace(),
+      );
+      await waitFor(() =>
+        expect(JSON.stringify(onWorkspaceChange.mock.lastCall?.[0])).toContain('edit();'),
+      );
+    });
+
+    it('swaps blocks in place when the load key changes', async () => {
+      const onCodeChange = vi.fn();
+      const { rerender } = render(
+        <BlocklyWorkspace
+          lang="es"
+          load={{ key: 'a:1', state: raw('a();') }}
+          onCodeChange={onCodeChange}
+        />,
+      );
+      const workspace = Blockly.getMainWorkspace();
+      rerender(
+        <BlocklyWorkspace
+          lang="es"
+          load={{ key: 'b:2', state: raw('b();') }}
+          onCodeChange={onCodeChange}
+        />,
+      );
+      expect(onCodeChange).toHaveBeenLastCalledWith(expect.stringContaining('b();'));
+      expect(onCodeChange).toHaveBeenLastCalledWith(expect.not.stringContaining('a();'));
+      expect(Blockly.getMainWorkspace()).toBe(workspace);
+    });
+
+    it('reports a workspace that cannot load and leaves the editor empty', () => {
+      const onLoadError = vi.fn();
+      const onCodeChange = vi.fn();
+      render(
+        <BlocklyWorkspace
+          lang="es"
+          load={{ key: 'bad:1', state: { blocks: { blocks: [{ type: 'no_such_block' }] } } }}
+          onLoadError={onLoadError}
+          onCodeChange={onCodeChange}
+        />,
+      );
+      expect(onLoadError).toHaveBeenCalledTimes(1);
+      expect(Blockly.getMainWorkspace().getAllBlocks(false)).toHaveLength(0);
+      expect(onCodeChange).toHaveBeenLastCalledWith('void setup() {\n}\n\nvoid loop() {\n}\n');
+    });
+  });
 });
