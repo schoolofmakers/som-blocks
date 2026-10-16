@@ -12,15 +12,13 @@ test('?lang=en switches the shell to English', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 });
 
-test('Blockly workspace renders with the raw toolbox category and generated code', async ({
-  page,
-}) => {
+test('Blockly workspace renders the full toolbox and generated code', async ({ page }) => {
   const mediaRequests: string[] = [];
   page.on('request', (request) => {
     if (/blockly-media|static\.blockly\.com/.test(request.url())) mediaRequests.push(request.url());
   });
 
-  await page.goto('/?lang=es');
+  await page.goto('/?lang=es&toolbox=full');
   // The main workspace, not the (hidden) flyout workspace.
   await expect(page.locator('svg.blocklySvg > g.blocklyWorkspace')).toBeVisible();
   await expect(page.getByRole('treeitem', { name: 'Código' })).toBeVisible();
@@ -33,8 +31,29 @@ test('Blockly workspace renders with the raw toolbox category and generated code
   for (const url of mediaRequests) expect(url.startsWith(`${origin}/blockly-media/`)).toBe(true);
 });
 
+test('the starter toolbox shows the core categories, without lists or raw code', async ({
+  page,
+}) => {
+  await page.goto('/?lang=es');
+  for (const name of ['Lógica', 'Control', 'Matemáticas', 'Texto', 'Variables', 'Funciones']) {
+    await expect(page.getByRole('treeitem', { name })).toBeVisible();
+  }
+  await expect(page.getByRole('treeitem', { name: 'Listas' })).toHaveCount(0);
+  await expect(page.getByRole('treeitem', { name: 'Código' })).toHaveCount(0);
+
+  // Core block labels come from Blockly's Spanish messages; our map block from ours.
+  await page.getByRole('treeitem', { name: 'Matemáticas' }).click();
+  await expect(page.locator('.blocklyFlyout').getByText('convertir')).toBeVisible();
+
+  // Dynamic categories are filled by Blockly itself.
+  await page.getByRole('treeitem', { name: 'Funciones' }).click();
+  await expect(page.locator('.blocklyFlyout .blocklyDraggable').first()).toBeVisible();
+  await page.getByRole('treeitem', { name: 'Variables' }).click();
+  await expect(page.locator('.blocklyFlyout').getByText('Crear variable')).toBeVisible();
+});
+
 test('dragging a raw block from the toolbox updates the generated code', async ({ page }) => {
-  await page.goto('/?lang=en');
+  await page.goto('/?lang=en&toolbox=full');
   await page.getByRole('treeitem', { name: 'Code' }).click();
   // First flyout block is `include library [Wire.h]`.
   const flyoutBlock = page.locator('.blocklyFlyout .blocklyDraggable').first();
@@ -78,7 +97,8 @@ test('board picker defaults to the C3, switches to UNO and persists across reloa
 test('hardware categories come before Código; the board LED block generates pinMode', async ({
   page,
 }) => {
-  await page.goto('/?lang=es');
+  // Código is full-toolbox only (docs/adr/0001-starter-toolbox.md).
+  await page.goto('/?lang=es&toolbox=full');
   const categories = ['Entrada/Salida', 'Tiempo', 'Puerto Serie', 'Código'];
   for (const name of categories) {
     await expect(page.getByRole('treeitem', { name })).toBeVisible();

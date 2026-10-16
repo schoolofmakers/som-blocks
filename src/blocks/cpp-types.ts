@@ -1,0 +1,289 @@
+import * as Blockly from 'blockly/core';
+import type { Block, Workspace } from 'blockly/core';
+import { Order, type ArduinoGenerator } from './arduino-generator';
+
+// C++ types for Blockly's untyped values, shared by the core families (variables, text,
+// lists, functions). Pure functions over the workspace; no state.
+//
+// The variable-typing heuristic (documented in docs/adr/0001-starter-toolbox.md → Typing):
+// every Blockly variable becomes one global, declared once in the definitions section. Its
+// type comes from everything assigned to it in the workspace:
+//   - a list (`lists_create_with`)           → fixed-size array `double name[N]` (N = largest)
+//   - any text value, or `text_append` on it → `String`
+//   - only true/false values                 → `bool`
+//   - anything else, or nothing known        → `double` (the default)
+// A value's type comes from the block's output check (`String`, `Boolean`, `Number`); a
+// variable read or a function call takes the type of that variable / function, with a cycle
+// guard. A function parameter is its own scope: it is typed by the assignments inside that
+// function plus the arguments its calls pass, never by the global of the same name.
+//
+// Pattern: carlosperate/ardublockly's StaticTyping (blockly/generators/arduino.js →
+// collectVarsWithTypes) also types variables from their assignments; ours is smaller
+// (three scalar types + arrays) and reads Blockly's own output checks instead of a
+// per-block getBlockType().
+
+export type ScalarType = 'double' | 'String' | 'bool';
+
+export interface ArrayType {
+  element: ScalarType;
+  size: number;
+}
+
+export type CppType = ScalarType | ArrayType;
+
+export function isArrayType(type: CppType | null): type is ArrayType {
+  return typeof type === 'object' && type !== null;
+}
+
+/** The scalar a type collapses to where arrays can't go (parameters, return values). */
+export function scalarOf(type: CppType | null): ScalarType {
+  if (!type) return 'double';
+  return isArrayType(type) ? type.element : type;
+}
+
+/** Combine the types of several assignments: arrays win, then String, then all-bool, then double. */
+export function mergeTypes(types: (CppType | null)[]): CppType | null {
+  const known = types.filter((type): type is CppType => type !== null);
+  if (!known.length) return null;
+  const arrays = known.filter(isArrayType);
+  if (arrays.length) {
+    return {
+      element: scalarOf(mergeTypes(arrays.map((array) => array.element))),
+      size: Math.max(...arrays.map((array) => array.size)),
+    };
+  }
+  if (known.includes('String')) return 'String';
+  if (known.every((type) => type === 'bool')) return 'bool';
+  return 'double';
+}
+
+/** Value inputs named `ADD0`, `ADD1`… (text_join, lists_create_with). */
+export function itemInputs(block: Block): string[] {
+  return block.inputList.map((input) => input.name).filter((name) => /^ADD\d+$/.test(name));
+}
+
+function inputBlock(block: Block, name: string): Block | null {
+  return block.getInputTargetBlock(name);
+}
+
+/** The type of the value `block` outputs, or `null` when nothing can be said. */
+export function valueType(
+  block: Block | null,
+  seen: ReadonlySet<string> = new Set(),
+): CppType | null {
+  if (!block) return null;
+  switch (block.type) {
+    case 'variables_get': {
+      const varId = block.getFieldValue('VAR') as string;
+      return assignedType(block.workspace, varId, variableScope(block, varId), seen);
+    }
+    case 'procedures_callreturn': {
+      const type = functionReturnType(block.workspace, block.getFieldValue('NAME') as string, seen);
+      return type === 'void' ? null : type;
+    }
+    case 'lists_create_with': {
+      const items = itemInputs(block);
+      const element = scalarOf(
+        mergeTypes(items.map((name) => scalarOrNull(valueType(inputBlock(block, name), seen)))),
+      );
+      return { element, size: items.length };
+    }
+    case 'lists_getIndex': {
+      const list = valueType(inputBlock(block, 'VALUE'), seen);
+      return isArrayType(list) ? list.element : null;
+    }
+    case 'logic_ternary':
+      return mergeTypes([
+        valueType(inputBlock(block, 'THEN'), seen),
+        valueType(inputBlock(block, 'ELSE'), seen),
+      ]);
+  }
+  const check = block.outputConnection?.getCheck() ?? [];
+  if (check.includes('String')) return 'String';
+  if (check.includes('Boolean')) return 'bool';
+  if (check.includes('Number')) return 'double';
+  return null;
+}
+
+function scalarOrNull(type: CppType | null): ScalarType | null {
+  return type === null || isArrayType(type) ? null : type;
+}
+
+/**
+ * Where `block`'s use of variable `varId` lives: the function that has it as a parameter, or
+ * `null` for the global. A parameter is a separate C++ variable that shadows the global.
+ */
+export function variableScope(block: Block, varId: string): Block | null {
+  const fn = enclosingFunction(block);
+  return fn?.getVarModels().some((model) => model.getId() === varId) ? fn : null;
+}
+
+/**
+ * The C++ type of variable `varId` in `scope` (`null` = the global; a procedures_def* block =
+ * its parameter), from every assignment to it in that scope and, for a parameter, every
+ * argument passed for it.
+ */
+export function variableType(
+  workspace: Workspace,
+  varId: string,
+  scope: Block | null = null,
+  seen: ReadonlySet<string> = new Set(),
+): CppType {
+  return assignedType(workspace, varId, scope, seen) ?? 'double';
+}
+
+function assignedType(
+  workspace: Workspace,
+  varId: string,
+  scope: Block | null,
+  seen: ReadonlySet<string>,
+): CppType | null {
+  const key = `variable:${varId}:${scope?.id ?? ''}`;
+  if (seen.has(key)) return null;
+  const inner = new Set(seen).add(key);
+  const assigned: (CppType | null)[] = [];
+  for (const block of workspace.getAllBlocks(false)) {
+    if (block.getFieldValue('VAR') !== varId || variableScope(block, varId) !== scope) continue;
+    switch (block.type) {
+      case 'variables_set':
+        assigned.push(valueType(inputBlock(block, 'VALUE'), inner));
+        break;
+      case 'text_append':
+        assigned.push('String');
+        break;
+      case 'math_change':
+      case 'controls_for':
+        assigned.push('double');
+        break;
+    }
+  }
+  if (scope) {
+    const index = scope.getVarModels().findIndex((model) => model.getId() === varId);
+    const name = scope.getFieldValue('NAME') as string;
+    for (const call of workspace.getAllBlocks(false)) {
+      const isCall =
+        call.type === 'procedures_callnoreturn' || call.type === 'procedures_callreturn';
+      if (isCall && Blockly.Names.equals(call.getFieldValue('NAME') as string, name)) {
+        assigned.push(valueType(inputBlock(call, `ARG${index}`), inner));
+      }
+    }
+  }
+  return mergeTypes(assigned);
+}
+
+/** Return type of the function named `name` (`void` for one with no return value). */
+export function functionReturnType(
+  workspace: Workspace,
+  name: string,
+  seen: ReadonlySet<string> = new Set(),
+): ScalarType | 'void' {
+  const def = Blockly.Procedures.getDefinition(name, workspace);
+  if (!def || def.type !== 'procedures_defreturn') return 'void';
+  const key = `function:${name}`;
+  if (seen.has(key)) return 'double';
+  const inner = new Set(seen).add(key);
+  const returned: (CppType | null)[] = [valueType(inputBlock(def, 'RETURN'), inner)];
+  for (const block of def.getDescendants(false)) {
+    if (block.type === 'procedures_ifreturn' && enclosingFunction(block) === def) {
+      returned.push(valueType(inputBlock(block, 'VALUE'), inner));
+    }
+  }
+  // Arrays can't be returned by value in C++; such a function returns its element type.
+  return scalarOf(mergeTypes(returned));
+}
+
+/** The procedure definition a block sits in, or `null` for top-level code. */
+export function enclosingFunction(block: Block): Block | null {
+  const root = block.getRootBlock();
+  return root.type === 'procedures_defnoreturn' || root.type === 'procedures_defreturn'
+    ? root
+    : null;
+}
+
+/** A literal of `type` for an empty input. */
+export function defaultValue(type: ScalarType): string {
+  switch (type) {
+    case 'String':
+      return 'String("")';
+    case 'bool':
+      return 'false';
+    default:
+      return '0';
+  }
+}
+
+/**
+ * Input `name` of `block` as a value of type `type` (its default when empty). Only `String`
+ * needs a conversion: Arduino's `String(int)` constructor is explicit, so `s = 5` won't compile.
+ */
+export function typedInput(
+  block: Block,
+  generator: ArduinoGenerator,
+  name: string,
+  type: ScalarType,
+  order: Order,
+): string {
+  if (type === 'String') return stringInput(block, generator, name, order) ?? '""';
+  return generator.valueToCode(block, name, order) || defaultValue(type);
+}
+
+/**
+ * Input `name` of `block` as an Arduino String, or `null` when it's empty. Non-text values
+ * get `String(…)`. With `object`, a text literal is wrapped too: left of `+`, `==` or `.`
+ * a bare `"…"` is a `const char*` (`"a" + "b"` adds pointers, `"a" == "b"` compares them).
+ * `order` is the binding the caller needs for a value that isn't wrapped.
+ */
+export function stringInput(
+  block: Block,
+  generator: ArduinoGenerator,
+  name: string,
+  order: Order,
+  object = false,
+): string | null {
+  const child = block.getInputTargetBlock(name);
+  if (!child) return null;
+  // A ternary over two literals is a `const char*` too.
+  const literal = child.type === 'text' || child.type === 'logic_ternary';
+  const usable = valueType(child) === 'String' && !(object && literal);
+  const code = generator.valueToCode(block, name, usable ? order : Order.NONE);
+  if (!code) return null;
+  return usable ? code : `String(${code})`;
+}
+
+/** A C++ string literal: `"…"` with `\`, `"`, and control characters escaped. UTF-8 stays as is. */
+export function cppString(text: string): string {
+  const escaped = text.replace(/[\\"\n\r\t]/g, (char) => {
+    switch (char) {
+      case '\n':
+        return '\\n';
+      case '\r':
+        return '\\r';
+      case '\t':
+        return '\\t';
+      default:
+        return `\\${char}`;
+    }
+  });
+  return `"${escaped}"`;
+}
+
+function declaration(type: CppType, name: string): string {
+  // A zero-length array isn't standard C++; list blocks flag an empty list (lists.ts).
+  if (isArrayType(type)) return `${type.element} ${name}[${Math.max(type.size, 1)}];`;
+  return `${type} ${name} = ${type === 'String' ? '""' : defaultValue(type)};`;
+}
+
+/**
+ * The C++ name of the variable `varId` as used by `block`, declaring it as a global in the
+ * definitions section unless `block` is inside a function that has it as a parameter (the
+ * parameter shadows the global, as in Blockly).
+ */
+export function variableRef(block: Block, generator: ArduinoGenerator, varId: string): string {
+  const name = generator.getVariableName(varId);
+  if (variableScope(block, varId)) return name;
+  generator.addDefinition(
+    `variable:${name}`,
+    declaration(variableType(block.workspace, varId), name),
+  );
+  return name;
+}

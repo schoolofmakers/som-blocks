@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BlocklyWorkspace } from './blocks/BlocklyWorkspace';
+import type { ToolboxProfile } from './blocks/types';
 import { BoardPicker } from './boards/BoardPicker';
 import { useBoardStore } from './boards/store';
 import { CodeView } from './codeview/CodeView';
@@ -14,9 +15,10 @@ import { ConnectButton } from './transport/ConnectScreen';
 
 interface AppProps {
   lang?: Lang;
+  toolboxProfile?: ToolboxProfile;
 }
 
-export function App({ lang = DEFAULT_LANG }: AppProps) {
+export function App({ lang = DEFAULT_LANG, toolboxProfile = 'starter' }: AppProps) {
   const [code, setCode] = useState('');
   const boardId = useBoardStore((state) => state.boardId);
   const editorLoad = useProjectsStore((state) => state.editorLoad);
@@ -50,6 +52,7 @@ export function App({ lang = DEFAULT_LANG }: AppProps) {
         {editorLoad ? (
           <BlocklyWorkspace
             lang={lang}
+            toolboxProfile={toolboxProfile}
             onCodeChange={setCode}
             boardId={boardId}
             load={editorLoad}

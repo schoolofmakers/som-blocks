@@ -138,9 +138,21 @@ export const serialFamily: BlockFamily = {
     colour: COLOUR,
     contents: [
       { kind: 'block', type: 'som_serial_begin', fields: { BAUD: DEFAULT_BAUD } },
-      { kind: 'block', type: 'som_serial_println' },
-      { kind: 'block', type: 'som_serial_print' },
-      { kind: 'block', type: 'som_serial_plot' },
+      {
+        kind: 'block',
+        type: 'som_serial_println',
+        inputs: { VALUE: { shadow: { type: 'text', fields: { TEXT: 'hola' } } } },
+      },
+      {
+        kind: 'block',
+        type: 'som_serial_print',
+        inputs: { VALUE: { shadow: { type: 'text', fields: { TEXT: 'hola' } } } },
+      },
+      {
+        kind: 'block',
+        type: 'som_serial_plot',
+        inputs: { VALUE: { shadow: { type: 'math_number', fields: { NUM: 0 } } } },
+      },
       { kind: 'block', type: 'som_serial_available' },
       { kind: 'block', type: 'som_serial_read_line' },
     ],

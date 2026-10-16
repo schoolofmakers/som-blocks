@@ -1,0 +1,82 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "variables_set",
+        "id": "set_notas",
+        "x": 20,
+        "y": 20,
+        "fields": { "VAR": { "id": "v_notas" } },
+        "inputs": {
+          "VALUE": {
+            "block": {
+              "type": "lists_create_with",
+              "id": "list",
+              "extraState": { "itemCount": 2 },
+              "inputs": {
+                "ADD0": { "block": { "type": "text", "id": "t1", "fields": { "TEXT": "do" } } },
+                "ADD1": { "block": { "type": "text", "id": "t2", "fields": { "TEXT": "re" } } }
+              }
+            }
+          }
+        },
+        "next": {
+          "block": {
+            "type": "lists_setIndex",
+            "id": "insert",
+            "fields": { "MODE": "INSERT", "WHERE": "FIRST" },
+            "inputs": {
+              "LIST": {
+                "block": {
+                  "type": "variables_get",
+                  "id": "g1",
+                  "fields": { "VAR": { "id": "v_notas" } }
+                }
+              },
+              "TO": { "block": { "type": "text", "id": "t3", "fields": { "TEXT": "si" } } }
+            },
+            "next": {
+              "block": {
+                "type": "variables_set",
+                "id": "set_n",
+                "fields": { "VAR": { "id": "v_n" } },
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "lists_getIndex",
+                      "id": "get",
+                      "fields": { "MODE": "GET", "WHERE": "FIRST" },
+                      "inputs": {
+                        "VALUE": {
+                          "block": {
+                            "type": "lists_create_with",
+                            "id": "inline",
+                            "extraState": { "itemCount": 1 },
+                            "inputs": {
+                              "ADD0": {
+                                "block": {
+                                  "type": "math_number",
+                                  "id": "n1",
+                                  "fields": { "NUM": 1 }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "variables": [
+    { "name": "notas", "id": "v_notas" },
+    { "name": "n", "id": "v_n" }
+  ]
+}

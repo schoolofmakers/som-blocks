@@ -1,6 +1,5 @@
 import * as Blockly from 'blockly/core';
-import { arduinoGenerator, Order } from '../arduino-generator';
-import type { BlockFamily } from '../types';
+import { arduinoGenerator } from '../arduino-generator';
 
 // Test-only helpers for golden fixtures and family unit tests.
 
@@ -47,35 +46,8 @@ export function setupBody(code: string): string[] {
   return match?.[1] ? match[1].split('\n').map((l) => l.trim()) : [];
 }
 
+/** A number literal: Blockly's core `math_number` block (math family generator). */
 export const num = (n: string | number): BlockState => ({
-  type: 'golden_number',
-  fields: { NUM: String(n) },
+  type: 'math_number',
+  fields: { NUM: Number(n) },
 });
-
-/**
- * Literal value blocks for fixtures. The real number/text blocks arrive with the core
- * families (B3), which run in parallel with B4; once they land, fixtures can switch to them.
- */
-export const goldenLiteralsFamily: BlockFamily = {
-  id: 'golden_literals',
-  blocks: [
-    {
-      type: 'golden_number',
-      message0: '%1',
-      args0: [{ type: 'field_input', name: 'NUM', text: '0' }],
-      output: 'Number',
-    },
-    {
-      type: 'golden_text',
-      message0: '"%1"',
-      args0: [{ type: 'field_input', name: 'TEXT', text: '' }],
-      output: 'String',
-    },
-  ],
-  generators: {
-    golden_number: (block) => [String(block.getFieldValue('NUM')), Order.ATOMIC],
-    golden_text: (block) => [JSON.stringify(String(block.getFieldValue('TEXT'))), Order.ATOMIC],
-  },
-  toolbox: [],
-  messages: { es: {}, en: {} },
-};

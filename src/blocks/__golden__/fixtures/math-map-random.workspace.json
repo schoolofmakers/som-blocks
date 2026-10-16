@@ -1,0 +1,211 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "variables_set",
+        "id": "set_brillo",
+        "x": 20,
+        "y": 20,
+        "fields": { "VAR": { "id": "v_brillo" } },
+        "inputs": {
+          "VALUE": {
+            "block": {
+              "type": "som_math_map",
+              "id": "map1",
+              "inputs": {
+                "VALUE": {
+                  "block": {
+                    "type": "variables_get",
+                    "id": "g_valor",
+                    "fields": { "VAR": { "id": "v_valor" } }
+                  }
+                },
+                "FROM_LOW": {
+                  "shadow": { "type": "math_number", "id": "m1", "fields": { "NUM": 0 } }
+                },
+                "FROM_HIGH": {
+                  "shadow": { "type": "math_number", "id": "m2", "fields": { "NUM": 1023 } }
+                },
+                "TO_LOW": {
+                  "shadow": { "type": "math_number", "id": "m3", "fields": { "NUM": 0 } }
+                },
+                "TO_HIGH": {
+                  "shadow": { "type": "math_number", "id": "m4", "fields": { "NUM": 255 } }
+                }
+              }
+            }
+          }
+        },
+        "next": {
+          "block": {
+            "type": "math_change",
+            "id": "chg",
+            "fields": { "VAR": { "id": "v_brillo" } },
+            "inputs": {
+              "DELTA": { "shadow": { "type": "math_number", "id": "d1", "fields": { "NUM": 1 } } }
+            },
+            "next": {
+              "block": {
+                "type": "variables_set",
+                "id": "set_dado",
+                "fields": { "VAR": { "id": "v_dado" } },
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "math_random_int",
+                      "id": "rnd",
+                      "inputs": {
+                        "FROM": {
+                          "shadow": { "type": "math_number", "id": "r1", "fields": { "NUM": 1 } }
+                        },
+                        "TO": {
+                          "shadow": { "type": "math_number", "id": "r2", "fields": { "NUM": 6 } }
+                        }
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "variables_set",
+                    "id": "set_mitad",
+                    "fields": { "VAR": { "id": "v_mitad" } },
+                    "inputs": {
+                      "VALUE": {
+                        "block": {
+                          "type": "math_arithmetic",
+                          "id": "div",
+                          "fields": { "OP": "DIVIDE" },
+                          "inputs": {
+                            "A": {
+                              "block": { "type": "math_number", "id": "a7", "fields": { "NUM": 7 } }
+                            },
+                            "B": {
+                              "block": { "type": "math_number", "id": "b2", "fields": { "NUM": 2 } }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "next": {
+                      "block": {
+                        "type": "controls_if",
+                        "id": "ifprime",
+                        "inputs": {
+                          "IF0": {
+                            "block": {
+                              "type": "math_number_property",
+                              "id": "prime",
+                              "fields": { "PROPERTY": "PRIME" },
+                              "inputs": {
+                                "NUMBER_TO_CHECK": {
+                                  "block": {
+                                    "type": "variables_get",
+                                    "id": "g_dado",
+                                    "fields": { "VAR": { "id": "v_dado" } }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "DO0": {
+                            "block": {
+                              "type": "variables_set",
+                              "id": "set_x",
+                              "fields": { "VAR": { "id": "v_x" } },
+                              "inputs": {
+                                "VALUE": {
+                                  "block": {
+                                    "type": "math_constrain",
+                                    "id": "con",
+                                    "inputs": {
+                                      "VALUE": {
+                                        "block": {
+                                          "type": "math_single",
+                                          "id": "neg",
+                                          "fields": { "OP": "NEG" },
+                                          "inputs": {
+                                            "NUM": {
+                                              "block": {
+                                                "type": "math_number",
+                                                "id": "m_1",
+                                                "fields": { "NUM": -1 }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "LOW": {
+                                        "block": {
+                                          "type": "math_trig",
+                                          "id": "sin",
+                                          "fields": { "OP": "SIN" },
+                                          "inputs": {
+                                            "NUM": {
+                                              "block": {
+                                                "type": "math_number",
+                                                "id": "m30",
+                                                "fields": { "NUM": 30 }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "HIGH": {
+                                        "block": {
+                                          "type": "math_modulo",
+                                          "id": "mod",
+                                          "inputs": {
+                                            "DIVIDEND": {
+                                              "block": {
+                                                "type": "math_round",
+                                                "id": "rnd2",
+                                                "fields": { "OP": "ROUNDUP" },
+                                                "inputs": {
+                                                  "NUM": {
+                                                    "block": {
+                                                      "type": "math_number",
+                                                      "id": "m35",
+                                                      "fields": { "NUM": 3.5 }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "DIVISOR": {
+                                              "block": {
+                                                "type": "math_number",
+                                                "id": "m2b",
+                                                "fields": { "NUM": 2 }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "variables": [
+    { "name": "brillo", "id": "v_brillo" },
+    { "name": "valor", "id": "v_valor" },
+    { "name": "dado", "id": "v_dado" },
+    { "name": "mitad", "id": "v_mitad" },
+    { "name": "x", "id": "v_x" }
+  ]
+}

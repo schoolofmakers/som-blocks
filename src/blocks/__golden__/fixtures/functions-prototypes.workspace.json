@@ -1,0 +1,173 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "procedures_defnoreturn",
+        "id": "def_blink",
+        "x": 20,
+        "y": 20,
+        "fields": { "NAME": "parpadear" },
+        "inputs": {
+          "STACK": {
+            "block": {
+              "type": "procedures_callnoreturn",
+              "id": "call_delay",
+              "extraState": { "name": "delay", "params": ["x"] },
+              "inputs": {
+                "ARG0": {
+                  "block": {
+                    "type": "variables_get",
+                    "id": "g_total",
+                    "fields": { "VAR": { "id": "v_total" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "procedures_defnoreturn",
+        "id": "def_delay",
+        "x": 20,
+        "y": 200,
+        "extraState": { "params": [{ "name": "x", "id": "v_x" }] },
+        "fields": { "NAME": "delay" },
+        "inputs": {
+          "STACK": {
+            "block": {
+              "type": "procedures_ifreturn",
+              "id": "ifret",
+              "extraState": "<mutation value=\"0\"></mutation>",
+              "inputs": {
+                "CONDITION": {
+                  "block": {
+                    "type": "logic_compare",
+                    "id": "cmp",
+                    "fields": { "OP": "LT" },
+                    "inputs": {
+                      "A": {
+                        "block": {
+                          "type": "variables_get",
+                          "id": "g_x",
+                          "fields": { "VAR": { "id": "v_x" } }
+                        }
+                      },
+                      "B": {
+                        "block": { "type": "math_number", "id": "zero", "fields": { "NUM": 0 } }
+                      }
+                    }
+                  }
+                }
+              },
+              "next": {
+                "block": {
+                  "type": "math_change",
+                  "id": "chg_total",
+                  "fields": { "VAR": { "id": "v_total" } },
+                  "inputs": {
+                    "DELTA": {
+                      "block": {
+                        "type": "variables_get",
+                        "id": "g_x2",
+                        "fields": { "VAR": { "id": "v_x" } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "procedures_defreturn",
+        "id": "def_greet",
+        "x": 20,
+        "y": 400,
+        "extraState": { "params": [{ "name": "nombre", "id": "v_nombre" }] },
+        "fields": { "NAME": "saludo" },
+        "inputs": {
+          "STACK": {
+            "block": {
+              "type": "procedures_ifreturn",
+              "id": "ifret2",
+              "extraState": "<mutation value=\"1\"></mutation>",
+              "inputs": {
+                "CONDITION": {
+                  "block": {
+                    "type": "text_isEmpty",
+                    "id": "empty",
+                    "inputs": {
+                      "VALUE": {
+                        "block": {
+                          "type": "variables_get",
+                          "id": "g_nombre",
+                          "fields": { "VAR": { "id": "v_nombre" } }
+                        }
+                      }
+                    }
+                  }
+                },
+                "VALUE": { "block": { "type": "text", "id": "anon", "fields": { "TEXT": "hola" } } }
+              }
+            }
+          },
+          "RETURN": {
+            "block": {
+              "type": "text_join",
+              "id": "join",
+              "extraState": { "itemCount": 2 },
+              "inputs": {
+                "ADD0": {
+                  "block": { "type": "text", "id": "hola", "fields": { "TEXT": "hola " } }
+                },
+                "ADD1": {
+                  "block": {
+                    "type": "variables_get",
+                    "id": "g_nombre2",
+                    "fields": { "VAR": { "id": "v_nombre" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "procedures_callnoreturn",
+        "id": "call_blink",
+        "x": 400,
+        "y": 20,
+        "extraState": { "name": "parpadear" },
+        "next": {
+          "block": {
+            "type": "variables_set",
+            "id": "set_x_global",
+            "fields": { "VAR": { "id": "v_x" } },
+            "inputs": {
+              "VALUE": {
+                "block": {
+                  "type": "procedures_callreturn",
+                  "id": "call_greet",
+                  "extraState": { "name": "saludo", "params": ["nombre"] },
+                  "inputs": {
+                    "ARG0": {
+                      "block": { "type": "math_number", "id": "n7", "fields": { "NUM": 7 } }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "variables": [
+    { "name": "x", "id": "v_x" },
+    { "name": "total", "id": "v_total" },
+    { "name": "nombre", "id": "v_nombre" }
+  ]
+}

@@ -2,7 +2,6 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   disposeTestWorkspace,
   generate,
-  goldenLiteralsFamily,
   num,
   setupBody,
   stack,
@@ -11,11 +10,10 @@ import {
 import { uno } from '../../boards/definitions/uno';
 import { registerBuiltInFamilies } from '../index';
 import { setPinProfile } from '../pins';
-import { applyLocale, registerFamily } from '../registry';
+import { applyLocale } from '../registry';
 
 beforeAll(() => {
   registerBuiltInFamilies();
-  registerFamily(goldenLiteralsFamily);
   applyLocale('es');
   setPinProfile(uno.pins); // the analogRead(A0) case needs an AVR pin list
 });

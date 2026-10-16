@@ -1,0 +1,110 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "controls_if",
+        "id": "if1",
+        "x": 20,
+        "y": 20,
+        "extraState": { "elseIfCount": 1, "hasElse": true },
+        "inputs": {
+          "IF0": {
+            "block": {
+              "type": "logic_operation",
+              "id": "and1",
+              "fields": { "OP": "AND" },
+              "inputs": {
+                "A": {
+                  "block": {
+                    "type": "logic_compare",
+                    "id": "lt1",
+                    "fields": { "OP": "LT" },
+                    "inputs": {
+                      "A": {
+                        "block": { "type": "math_number", "id": "n1", "fields": { "NUM": 1 } }
+                      },
+                      "B": {
+                        "block": { "type": "math_number", "id": "n2", "fields": { "NUM": 2 } }
+                      }
+                    }
+                  }
+                },
+                "B": {
+                  "block": {
+                    "type": "logic_negate",
+                    "id": "not1",
+                    "inputs": {
+                      "BOOL": {
+                        "block": {
+                          "type": "logic_boolean",
+                          "id": "f1",
+                          "fields": { "BOOL": "FALSE" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "DO0": {
+            "block": {
+              "type": "som_raw_statement",
+              "id": "a",
+              "fields": { "CODE": "tone(8, 262);" }
+            }
+          },
+          "IF1": {
+            "block": {
+              "type": "logic_compare",
+              "id": "eq1",
+              "fields": { "OP": "EQ" },
+              "inputs": {
+                "A": { "block": { "type": "text", "id": "t1", "fields": { "TEXT": "hola" } } },
+                "B": { "block": { "type": "text", "id": "t2", "fields": { "TEXT": "chao" } } }
+              }
+            }
+          },
+          "DO1": {
+            "block": {
+              "type": "som_raw_statement",
+              "id": "b",
+              "fields": { "CODE": "tone(8, 294);" }
+            }
+          },
+          "ELSE": {
+            "block": { "type": "som_raw_statement", "id": "c", "fields": { "CODE": "noTone(8);" } }
+          }
+        },
+        "next": {
+          "block": {
+            "type": "controls_if",
+            "id": "if2",
+            "inputs": {
+              "IF0": {
+                "block": {
+                  "type": "logic_operation",
+                  "id": "or1",
+                  "fields": { "OP": "OR" },
+                  "inputs": {
+                    "A": {
+                      "block": { "type": "logic_boolean", "id": "t3", "fields": { "BOOL": "TRUE" } }
+                    }
+                  }
+                }
+              },
+              "DO0": {
+                "block": {
+                  "type": "som_raw_statement",
+                  "id": "d",
+                  "fields": { "CODE": "delay(10);" }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

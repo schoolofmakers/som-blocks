@@ -1,0 +1,126 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "variables_set",
+        "id": "set_msg",
+        "x": 20,
+        "y": 20,
+        "fields": { "VAR": { "id": "v_msg" } },
+        "inputs": {
+          "VALUE": {
+            "block": {
+              "type": "text_join",
+              "id": "join",
+              "extraState": { "itemCount": 3 },
+              "inputs": {
+                "ADD0": {
+                  "block": { "type": "text", "id": "t1", "fields": { "TEXT": "Hola \"maker\" " } }
+                },
+                "ADD1": { "block": { "type": "math_number", "id": "n1", "fields": { "NUM": 42 } } },
+                "ADD2": { "block": { "type": "text", "id": "t2", "fields": { "TEXT": "!" } } }
+              }
+            }
+          }
+        },
+        "next": {
+          "block": {
+            "type": "text_append",
+            "id": "app",
+            "fields": { "VAR": { "id": "v_msg" } },
+            "inputs": {
+              "TEXT": {
+                "block": {
+                  "type": "variables_get",
+                  "id": "g_n",
+                  "fields": { "VAR": { "id": "v_n" } }
+                }
+              }
+            },
+            "next": {
+              "block": {
+                "type": "variables_set",
+                "id": "set_n",
+                "fields": { "VAR": { "id": "v_n" } },
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "text_length",
+                      "id": "len",
+                      "inputs": {
+                        "VALUE": {
+                          "block": {
+                            "type": "variables_get",
+                            "id": "g_msg",
+                            "fields": { "VAR": { "id": "v_msg" } }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "controls_if",
+                    "id": "if1",
+                    "inputs": {
+                      "IF0": {
+                        "block": {
+                          "type": "text_isEmpty",
+                          "id": "empty",
+                          "inputs": {
+                            "VALUE": {
+                              "block": { "type": "text", "id": "t3", "fields": { "TEXT": "" } }
+                            }
+                          }
+                        }
+                      },
+                      "DO0": {
+                        "block": {
+                          "type": "variables_set",
+                          "id": "set_pos",
+                          "fields": { "VAR": { "id": "v_pos" } },
+                          "inputs": {
+                            "VALUE": {
+                              "block": {
+                                "type": "text_indexOf",
+                                "id": "idx",
+                                "fields": { "END": "LAST" },
+                                "inputs": {
+                                  "VALUE": {
+                                    "block": {
+                                      "type": "variables_get",
+                                      "id": "g_msg2",
+                                      "fields": { "VAR": { "id": "v_msg" } }
+                                    }
+                                  },
+                                  "FIND": {
+                                    "block": {
+                                      "type": "text",
+                                      "id": "t4",
+                                      "fields": { "TEXT": "a" }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "variables": [
+    { "name": "mensaje", "id": "v_msg" },
+    { "name": "n", "id": "v_n" },
+    { "name": "posición", "id": "v_pos" }
+  ]
+}

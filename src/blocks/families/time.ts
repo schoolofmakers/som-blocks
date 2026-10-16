@@ -92,9 +92,21 @@ export const timeFamily: BlockFamily = {
     name: '%{BKY_SOM_TIME_CATEGORY}',
     colour: COLOUR,
     contents: [
-      { kind: 'block', type: 'som_time_delay_ms' },
-      { kind: 'block', type: 'som_time_delay_s' },
-      { kind: 'block', type: 'som_time_every' },
+      {
+        kind: 'block',
+        type: 'som_time_delay_ms',
+        inputs: { MS: { shadow: { type: 'math_number', fields: { NUM: 500 } } } },
+      },
+      {
+        kind: 'block',
+        type: 'som_time_delay_s',
+        inputs: { SECONDS: { shadow: { type: 'math_number', fields: { NUM: 1 } } } },
+      },
+      {
+        kind: 'block',
+        type: 'som_time_every',
+        inputs: { MS: { shadow: { type: 'math_number', fields: { NUM: 1000 } } } },
+      },
       { kind: 'block', type: 'som_time_millis' },
     ],
   },

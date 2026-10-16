@@ -13,7 +13,7 @@
             "type": "som_time_delay_ms",
             "id": "wait1",
             "inputs": {
-              "MS": { "block": { "type": "golden_number", "fields": { "NUM": "500" } } }
+              "MS": { "block": { "type": "math_number", "fields": { "NUM": "500" } } }
             },
             "next": {
               "block": {
@@ -25,7 +25,7 @@
                     "type": "som_time_delay_ms",
                     "id": "wait2",
                     "inputs": {
-                      "MS": { "block": { "type": "golden_number", "fields": { "NUM": "500" } } }
+                      "MS": { "block": { "type": "math_number", "fields": { "NUM": "500" } } }
                     }
                   }
                 }

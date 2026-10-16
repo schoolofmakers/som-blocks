@@ -22,10 +22,22 @@ export type BlockGenerator = (
   generator: ArduinoGenerator,
 ) => string | [string, Order] | null;
 
+/**
+ * Which toolbox the editor shows (docs/adr/0001-starter-toolbox.md): `starter` for ages
+ * 10–14 (the default), `full` adds the advanced blocks and categories.
+ */
+export type ToolboxProfile = 'starter' | 'full';
+
 export interface ToolboxBlock {
   kind: 'block';
   type: string;
   fields?: Record<string, unknown>;
+  /** Blockly JSON toolbox inputs, e.g. `{ A: { shadow: { type: 'math_number' } } }`. */
+  inputs?: Record<string, unknown>;
+  /** Blockly JSON block extra state, e.g. `{ hasElse: true }` for `controls_if`. */
+  extraState?: unknown;
+  /** Only in the `full` toolbox profile. */
+  fullOnly?: boolean;
 }
 
 export interface ToolboxSeparator {
@@ -37,7 +49,11 @@ export interface ToolboxCategory {
   /** Category label: a `%{BKY_…}` message reference, never a literal. */
   name: string;
   colour?: string;
+  /** A dynamic category filled by Blockly (`VARIABLE`, `PROCEDURE`); `contents` stays empty. */
+  custom?: string;
   contents: ToolboxItem[];
+  /** Only in the `full` toolbox profile. */
+  fullOnly?: boolean;
 }
 
 export type ToolboxItem = ToolboxBlock | ToolboxSeparator | ToolboxCategory;
@@ -49,7 +65,13 @@ export interface BlockFamily {
   /** Stable family id, e.g. `raw`, `io`, `espnow`. */
   id: string;
   blocks: BlockDefinition[];
-  /** Keyed by block type; every type in `blocks` needs a generator. */
+  /**
+   * Block types defined outside our families (Blockly's core blocks from `blockly/blocks`)
+   * that this family supplies the generators for. Like `blocks`, each one is owned by
+   * exactly one family and needs a generator.
+   */
+  externalBlocks?: string[];
+  /** Keyed by block type; every type in `blocks` and `externalBlocks` needs a generator. */
   generators: Record<string, BlockGenerator>;
   toolbox: ToolboxCategory | ToolboxItem[];
   messages: FamilyMessages;

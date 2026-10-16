@@ -42,6 +42,7 @@ export const rawFamily: BlockFamily = {
     kind: 'category',
     name: '%{BKY_SOM_RAW_CATEGORY}',
     colour: COLOUR,
+    fullOnly: true,
     contents: [
       { kind: 'block', type: 'som_raw_include' },
       { kind: 'block', type: 'som_raw_statement' },

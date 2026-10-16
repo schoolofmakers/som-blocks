@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { detectToolboxProfile } from './blocks/toolbox-profile';
 import { detectLang } from './i18n/lang';
 import { t } from './i18n/messages';
 import './index.css';
@@ -14,6 +15,6 @@ if (!root) throw new Error('#root element missing from index.html');
 
 createRoot(root).render(
   <StrictMode>
-    <App lang={lang} />
+    <App lang={lang} toolboxProfile={detectToolboxProfile()} />
   </StrictMode>,
 );
