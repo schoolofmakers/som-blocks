@@ -82,7 +82,8 @@ compile_check() {
 avr_fw='(.hex | type == "string") and (.hex | length > 0)'
 esp_fw='(.files | type == "array") and (.files | length > 0) and all(.files[]; (.data | type == "string") and (.data | length > 0))'
 
-compile_check "esp32:esp32:esp32c3" "$(blink_sketch 8)" "$esp_fw"
+# The C3 SuperMini fqbn from _config/boards.md (native USB-CDC serial).
+compile_check "esp32:esp32:esp32c3:CDCOnBoot=cdc" "$(blink_sketch 8)" "$esp_fw"
 compile_check "arduino:avr:uno" "$(blink_sketch 13)" "$avr_fw"
 compile_check "arduino:avr:nano:cpu=atmega328old" "$(blink_sketch 13)" "$avr_fw"
 

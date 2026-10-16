@@ -3,8 +3,8 @@ name: compile-server
 on:
   pull_request:
     paths:
-      - "server/compile/**"
-      - ".github/workflows/compile-server.yml"
+      - 'server/compile/**'
+      - '.github/workflows/compile-server.yml'
 
 permissions:
   contents: read
