@@ -38,10 +38,13 @@ interface BlocklyWorkspaceProps {
   lang: Lang;
   /** Called with the full sketch after mount and after every non-UI workspace change. */
   onCodeChange?: (code: string) => void;
+  /** Selected board id; a change regenerates the code (pin blocks read the board's pins). */
+  boardId?: string;
 }
 
-export function BlocklyWorkspace({ lang, onCodeChange }: BlocklyWorkspaceProps) {
+export function BlocklyWorkspace({ lang, onCodeChange, boardId }: BlocklyWorkspaceProps) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const onCodeRef = useRef(onCodeChange);
   // Blocks survive a re-inject (language change, StrictMode double mount).
   const savedState = useRef<ReturnType<typeof Blockly.serialization.workspaces.save> | null>(null);
@@ -59,6 +62,7 @@ export function BlocklyWorkspace({ lang, onCodeChange }: BlocklyWorkspaceProps) 
     applyLocale(lang);
     Blockly.Scrollbar.scrollbarThickness = SCROLLBAR_THICKNESS;
     const workspace = Blockly.inject(host, workspaceOptions());
+    workspaceRef.current = workspace;
     if (savedState.current) {
       Blockly.serialization.workspaces.load(savedState.current, workspace);
     }
@@ -78,9 +82,16 @@ export function BlocklyWorkspace({ lang, onCodeChange }: BlocklyWorkspaceProps) 
     return () => {
       resizeObserver?.disconnect();
       savedState.current = Blockly.serialization.workspaces.save(workspace);
+      workspaceRef.current = null;
       workspace.dispose();
     };
   }, [lang]);
+
+  // A board change emits no workspace event, so regenerate explicitly.
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    if (workspace) onCodeRef.current?.(arduinoGenerator.workspaceToCode(workspace));
+  }, [boardId]);
 
   return (
     <div

@@ -8,6 +8,8 @@ const es = {
   UI_WORKSPACE_LABEL: 'Espacio de bloques',
   UI_GENERATED_CODE: 'Código generado',
   UI_FOOTER: 'Hecho por School of Makers',
+  UI_BOARD_LABEL: 'Placa',
+  UI_BOARD_VARIANT_OLD_BOOTLOADER: 'bootloader viejo',
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -19,6 +21,8 @@ const en: Partial<Record<MessageKey, string>> = {
   UI_WORKSPACE_LABEL: 'Blocks workspace',
   UI_GENERATED_CODE: 'Generated code',
   UI_FOOTER: 'Made by School of Makers',
+  UI_BOARD_LABEL: 'Board',
+  UI_BOARD_VARIANT_OLD_BOOTLOADER: 'old bootloader',
 };
 
 export const SUPPORTED_LANGS = ['es', 'en'] as const;

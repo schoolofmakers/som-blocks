@@ -38,4 +38,17 @@ describe('BlocklyWorkspace', () => {
     expect(onCodeChange).toHaveBeenCalledWith(expect.stringContaining('  blink();\n'));
     expect(screen.getByTestId('blockly-workspace')).toHaveAccessibleName('Blocks workspace');
   });
+
+  it('regenerates the code when the board changes, without re-injecting', () => {
+    const onCodeChange = vi.fn();
+    const { rerender } = render(
+      <BlocklyWorkspace lang="es" onCodeChange={onCodeChange} boardId="esp32c3-supermini" />,
+    );
+    const workspace = Blockly.getMainWorkspace();
+    onCodeChange.mockClear();
+    rerender(<BlocklyWorkspace lang="es" onCodeChange={onCodeChange} boardId="uno" />);
+    expect(onCodeChange).toHaveBeenCalledTimes(1);
+    expect(onCodeChange).toHaveBeenCalledWith(expect.stringContaining('void loop()'));
+    expect(Blockly.getMainWorkspace()).toBe(workspace);
+  });
 });

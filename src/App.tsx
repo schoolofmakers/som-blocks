@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { BlocklyWorkspace } from './blocks/BlocklyWorkspace';
+import { BoardPicker } from './boards/BoardPicker';
+import { useBoardStore } from './boards/store';
 import { DEFAULT_LANG, t, type Lang } from './i18n/messages';
 
 interface AppProps {
@@ -8,15 +10,19 @@ interface AppProps {
 
 export function App({ lang = DEFAULT_LANG }: AppProps) {
   const [code, setCode] = useState('');
+  const boardId = useBoardStore((state) => state.boardId);
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <header className="border-b border-border bg-surface px-4 py-3">
-        <h1 className="text-xl font-bold text-accent">{t('UI_APP_TITLE', lang)}</h1>
-        <p className="text-sm text-muted">{t('UI_TAGLINE', lang)}</p>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3">
+        <div>
+          <h1 className="text-xl font-bold text-accent">{t('UI_APP_TITLE', lang)}</h1>
+          <p className="text-sm text-muted">{t('UI_TAGLINE', lang)}</p>
+        </div>
+        <BoardPicker lang={lang} />
       </header>
       <main className="flex flex-1 flex-col gap-4 p-4 lg:flex-row">
-        <BlocklyWorkspace lang={lang} onCodeChange={setCode} />
+        <BlocklyWorkspace lang={lang} onCodeChange={setCode} boardId={boardId} />
         {/* Minimal read-only preview; the real code view (copy/download) is B12. */}
         <section aria-labelledby="generated-code-title" className="flex flex-col lg:w-96">
           <h2 id="generated-code-title" className="mb-2 text-sm font-semibold text-muted">

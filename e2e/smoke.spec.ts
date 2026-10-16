@@ -56,3 +56,21 @@ test('dragging a raw block from the toolbox updates the generated code', async (
   await expect(flyoutScrollbar).toHaveCount(1);
   await expect(flyoutScrollbar).toBeHidden();
 });
+
+test('board picker defaults to the C3, switches to UNO and persists across reload', async ({
+  page,
+}) => {
+  await page.goto('/?lang=es');
+  const picker = page.getByRole('combobox', { name: 'Placa' });
+  await expect(picker).toHaveValue('esp32c3-supermini');
+  await expect(page.getByTestId('board-chip')).toHaveText('ESP32-C3');
+
+  await picker.selectOption('uno');
+  await expect(page.getByTestId('board-chip')).toHaveText('AVR');
+  // No pin blocks exist yet (B4), so the sketch is board-independent; it must still render.
+  await expect(page.getByTestId('generated-code')).toContainText('void loop() {');
+
+  await page.reload();
+  await expect(page.getByRole('combobox', { name: 'Placa' })).toHaveValue('uno');
+  await expect(page.getByTestId('board-chip')).toHaveText('AVR');
+});
