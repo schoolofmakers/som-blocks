@@ -11,7 +11,7 @@ Static single-page editor (Vite/TS/Blockly) → HTTPS JSON → compile server (d
   - On gcc failure the reply is `{log}` with no `hex`/`files` and often no `error` → clients MUST treat "no firmware" as failure and show `log`.
   - `libs` entries must be objects with a `url` (zip); a bare string crashes the request (HTTP 200, empty body).
 - CORS is `*`. Timeout observed ≈30 s on the public instance.
-- The 2021 Docker Hub image lacks ESP32-C3 (esp32 core 1.0.6). We build our own image from current `main` (node 20, installs latest esp32 core 3.3.x which includes the C3 and ESP-NOW). Image lives in `server/`.
+- The 2021 Docker Hub image lacks ESP32-C3 (esp32 core 1.0.6). We build our own image (`server/compile`, A1) from upstream `master` pinned at 98bbc30 (node 20): cores arduino:avr 1.8.8, esp32 3.3.12 (has the C3 and ESP-NOW), esp8266 3.1.2; 4.4 GB; Fly region `gru`. Cores install at build time, so a rebuild may bump versions — the Dockerfile fails the build if the C3 or UNO are missing.
 
 ## Transports (how the browser reaches a board)
 One `Transport` interface (`open/close/write/onData`) with two implementations; flashers and the serial monitor only see the interface.
@@ -30,7 +30,7 @@ Why a relay and not direct LAN: the editor is served over HTTPS, and browsers bl
 
 ## Upload paths (browser, USB)
 - AVR (UNO, NANO old bootloader, future SoM NANO-C): `avrgirl-arduino` browser build (MIT), stk500v1 over Web Serial. Needs `window.Buffer` (buffer@6) and `window.process` (process@0.11) injected before load. Board profile `uno` / `nano`.
-- ESP32-C3 / ESP32 / ESP8266: `esptool-js` (Apache-2.0) over Web Serial. C3 SuperMini enumerates as native USB-CDC (Espressif VID 0x303a); bootloader image at 0x0 on C3 (server returns the address per image).
+- ESP32-C3 / ESP32 / ESP8266: `esptool-js` (Apache-2.0) over Web Serial. C3 SuperMini enumerates as native USB-CDC (Espressif VID 0x303a). The flasher takes the **bootloader address from our board registry** (C3 = 0x0), not from the server, because upstream returns 0x1000 for chips whose address is 0 (see `_config/boards.md`). Other image addresses (boot_app0 0xe000, partitions 0x8000, app 0x10000) come from the server response.
 
 ## Block families (planned)
 Core: logic, control, math, text, variables, lists, functions. Hardware: io, time, serial. ESP32-C3: wifi, ble (BLE only — the C3 has no Bluetooth Classic), espnow. Later: sensors, actuators, displays, neopixel.
