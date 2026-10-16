@@ -1,0 +1,37 @@
+name: compile-server
+
+on:
+  pull_request:
+    paths:
+      - "server/compile/**"
+      - ".github/workflows/compile-server.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: server/compile/Dockerfile
+      - name: shellcheck
+        run: shellcheck server/compile/smoke.sh
+
+  # The image is several GB and takes a long time to build, so CI never builds
+  # it. When a deployed server exists, smoke-test it instead.
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      COMPILE_SERVER_URL: ${{ secrets.COMPILE_SERVER_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip (COMPILE_SERVER_URL not set)
+        if: env.COMPILE_SERVER_URL == ''
+        run: echo "COMPILE_SERVER_URL secret not set; skipping smoke test."
+      - name: Smoke test deployed server
+        if: env.COMPILE_SERVER_URL != ''
+        run: bash server/compile/smoke.sh "$COMPILE_SERVER_URL"
