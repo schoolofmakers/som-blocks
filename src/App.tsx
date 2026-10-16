@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { BlocklyWorkspace } from './blocks/BlocklyWorkspace';
 import { BoardPicker } from './boards/BoardPicker';
 import { useBoardStore } from './boards/store';
+import { CompileButton } from './compile/CompileButton';
+import { LogPanel } from './compile/LogPanel';
+import { ServerSettings } from './compile/ServerSettings';
 import { DEFAULT_LANG, t, type Lang } from './i18n/messages';
 
 interface AppProps {
@@ -19,7 +22,11 @@ export function App({ lang = DEFAULT_LANG }: AppProps) {
           <h1 className="text-xl font-bold text-accent">{t('UI_APP_TITLE', lang)}</h1>
           <p className="text-sm text-muted">{t('UI_TAGLINE', lang)}</p>
         </div>
-        <BoardPicker lang={lang} />
+        <div className="flex flex-wrap items-center gap-2">
+          <BoardPicker lang={lang} />
+          <ServerSettings lang={lang} />
+          <CompileButton lang={lang} code={code} boardId={boardId} />
+        </div>
       </header>
       <main className="flex flex-1 flex-col gap-4 p-4 lg:flex-row">
         <BlocklyWorkspace lang={lang} onCodeChange={setCode} boardId={boardId} />
@@ -34,6 +41,7 @@ export function App({ lang = DEFAULT_LANG }: AppProps) {
           >
             {code}
           </pre>
+          <LogPanel lang={lang} />
         </section>
       </main>
       <footer className="border-t border-border px-4 py-2 text-xs text-muted">
