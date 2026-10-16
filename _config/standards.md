@@ -1,8 +1,9 @@
 # Standards — som-blocks
 
 ## Stack
-- Vite + TypeScript (strict) + Blockly 13.x. No framework for v1 unless a PR proves the need (vanilla TS + small components). Vitest for tests. pnpm.
-- Static deploy (editor) + one Docker compile server (`server/`) on Fly.io. No backend of our own in v1; projects persist in IndexedDB in the browser.
+- Vite + React 18 + TypeScript (strict) + Blockly 13.x, built as an installable PWA (works offline for editing; compile needs network). Tailwind for styling, Zustand for app state, Dexie for IndexedDB, Vitest + Playwright for tests. pnpm. Same shape as som-classcoach's web app so the team moves between repos without relearning.
+- Mobile is a first-class target (Android Chrome tablets/phones): touch-friendly Blockly config, responsive layout, and a `Transport` abstraction so the board link can be Web Serial over USB (desktop) or WiFi through our relay (any browser, incl. iOS). Over-the-air upload is WiFi via the relay, never Bluetooth. See `_config/architecture.md` → Transports.
+- Static deploy (editor) + Docker compile server + our small relay service (`server/`) on Fly.io. The relay holds only transient device sessions and build images (minutes); projects persist in IndexedDB in the browser.
 - Licence MIT. **Never copy code from Hello Blocks' recovered source** (Academia de Inventores copyright) or from DuinoApp (GPL-3.0). Patterns and the HTTP contract are fine; code is not. Dependencies must be MIT/Apache/BSD/ISC.
 
 ## Code

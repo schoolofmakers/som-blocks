@@ -13,7 +13,22 @@ Static single-page editor (Vite/TS/Blockly) → HTTPS JSON → compile server (d
 - CORS is `*`. Timeout observed ≈30 s on the public instance.
 - The 2021 Docker Hub image lacks ESP32-C3 (esp32 core 1.0.6). We build our own image from current `main` (node 20, installs latest esp32 core 3.3.x which includes the C3 and ESP-NOW). Image lives in `server/`.
 
-## Upload paths (browser)
+## Transports (how the browser reaches a board)
+One `Transport` interface (`open/close/write/onData`) with two implementations; flashers and the serial monitor only see the interface.
+- `WebSerialTransport` — USB on desktop Chrome/Edge (Web Serial). Not available on any mobile browser. Fast path and rescue path.
+- `RelayTransport` — WiFi, through our relay service (below). Works from ANY browser including iOS Safari, because the page only talks HTTPS to our server; the board talks to the same server. This is the mobile path.
+Browser support is shown on the connect screen; unsupported combinations get an explicit message, never a silent failure.
+
+## Over-the-air upload to the ESP32-C3 over WiFi (decision 2026-10-16, replaces an earlier BLE idea)
+Why a relay and not direct LAN: the editor is served over HTTPS, and browsers block an HTTPS page from calling `http://192.168.x.x` (mixed content + Private Network Access). So the phone cannot POST firmware to the board directly. The board pulls instead.
+- **Relay service** (`server/relay`, our code, MIT, tiny Node/Hono): the board keeps a WebSocket to it; the editor calls it over HTTPS. Endpoints: device registers with a claim code; editor claims a device by code; editor posts a build id → relay tells the board → board downloads the image over HTTPS from the relay and flashes it with `Update`; board streams serial lines up and accepts lines down (monitor over WiFi).
+- **SoM resident firmware** on the C3 `factory` partition: WiFi provisioning (credentials entered once over USB from the editor, or via a captive portal on first boot), relay connection, OTA receive into `ota_0`, claim code shown in the serial monitor and derivable from the MAC. Long BOOT-press reboots to `factory` as recovery.
+- **`SomLink` library** linked by the generator into every C3 sketch: keeps the relay connection + OTA + serial bridge alive inside the student's program, so the next upload from the phone works without touching USB.
+- Flow from a phone: compile on the compile server → editor posts the image to the relay as a build → relay notifies the claimed board → board downloads (~200–400 KB in a few seconds on WiFi) → verifies → reboots into the new sketch. Progress and the board's serial output appear in the editor.
+- Requires the board to be on a WiFi network with internet (school WiFi or a phone hotspot). Offline-lab variant: when the editor itself is served over plain HTTP on a lab laptop (local Docker setup), a direct `http://<board-ip>/update` push is allowed by the browser and can be offered as a shortcut; same board firmware.
+- Bluetooth is not used for upload. BLE remains available as a *block family* for student projects (C3 is BLE-only, no Classic).
+
+## Upload paths (browser, USB)
 - AVR (UNO, NANO old bootloader, future SoM NANO-C): `avrgirl-arduino` browser build (MIT), stk500v1 over Web Serial. Needs `window.Buffer` (buffer@6) and `window.process` (process@0.11) injected before load. Board profile `uno` / `nano`.
 - ESP32-C3 / ESP32 / ESP8266: `esptool-js` (Apache-2.0) over Web Serial. C3 SuperMini enumerates as native USB-CDC (Espressif VID 0x303a); bootloader image at 0x0 on C3 (server returns the address per image).
 
