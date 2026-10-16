@@ -6,7 +6,7 @@ Start at `CLAUDE.md`. Code arrives through the PR plan in `_config/greploop-meth
 
 ## Editor development
 
-Requires Node 22 (`.nvmrc`) and pnpm 10 (pinned in `package.json` → `packageManager`; `corepack enable` picks it up).
+Requires Node 22.22.2 or newer 22.x (`.nvmrc`; jsdom needs ≥22.22.2) and pnpm 10 (pinned in `package.json` → `packageManager`; `corepack enable` picks it up).
 
 ```
 pnpm install
