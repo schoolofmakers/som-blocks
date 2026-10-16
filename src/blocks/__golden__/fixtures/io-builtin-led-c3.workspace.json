@@ -1,0 +1,41 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_io_builtin_led",
+        "id": "on",
+        "x": 20,
+        "y": 20,
+        "fields": { "STATE": "ON" },
+        "next": {
+          "block": {
+            "type": "som_time_delay_s",
+            "id": "wait1",
+            "inputs": {
+              "SECONDS": { "block": { "type": "golden_number", "fields": { "NUM": "0.5" } } }
+            },
+            "next": {
+              "block": {
+                "type": "som_io_builtin_led",
+                "id": "off",
+                "fields": { "STATE": "OFF" },
+                "next": {
+                  "block": {
+                    "type": "som_time_delay_s",
+                    "id": "wait2",
+                    "inputs": {
+                      "SECONDS": {
+                        "block": { "type": "golden_number", "fields": { "NUM": "0.5" } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

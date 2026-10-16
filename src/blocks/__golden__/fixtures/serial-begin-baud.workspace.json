@@ -1,0 +1,34 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_serial_begin",
+        "id": "begin",
+        "x": 20,
+        "y": 20,
+        "fields": { "BAUD": "9600" },
+        "next": {
+          "block": {
+            "type": "som_serial_print",
+            "id": "print",
+            "inputs": {
+              "VALUE": { "block": { "type": "golden_text", "fields": { "TEXT": "Hola" } } }
+            },
+            "next": {
+              "block": {
+                "type": "som_serial_println",
+                "id": "println",
+                "inputs": {
+                  "VALUE": {
+                    "block": { "type": "som_serial_read_line", "id": "line" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

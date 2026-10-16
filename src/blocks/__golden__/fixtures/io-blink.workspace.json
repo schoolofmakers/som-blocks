@@ -1,0 +1,39 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_io_digital_write",
+        "id": "on",
+        "x": 20,
+        "y": 20,
+        "fields": { "PIN": "13", "STATE": "HIGH" },
+        "next": {
+          "block": {
+            "type": "som_time_delay_ms",
+            "id": "wait1",
+            "inputs": {
+              "MS": { "block": { "type": "golden_number", "fields": { "NUM": "500" } } }
+            },
+            "next": {
+              "block": {
+                "type": "som_io_digital_write",
+                "id": "off",
+                "fields": { "PIN": "13", "STATE": "LOW" },
+                "next": {
+                  "block": {
+                    "type": "som_time_delay_ms",
+                    "id": "wait2",
+                    "inputs": {
+                      "MS": { "block": { "type": "golden_number", "fields": { "NUM": "500" } } }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}
