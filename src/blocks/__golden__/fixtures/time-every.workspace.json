@@ -1,0 +1,39 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_time_every",
+        "id": "every1",
+        "x": 20,
+        "y": 20,
+        "inputs": {
+          "MS": { "block": { "type": "golden_number", "fields": { "NUM": "1000" } } },
+          "DO": {
+            "block": {
+              "type": "som_serial_println",
+              "id": "print",
+              "inputs": { "VALUE": { "block": { "type": "som_time_millis", "id": "now" } } }
+            }
+          }
+        },
+        "next": {
+          "block": {
+            "type": "som_time_every",
+            "id": "every2",
+            "inputs": {
+              "MS": { "block": { "type": "golden_number", "fields": { "NUM": "250" } } },
+              "DO": {
+                "block": {
+                  "type": "som_io_digital_write",
+                  "id": "led",
+                  "fields": { "PIN": "13", "STATE": "HIGH" }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

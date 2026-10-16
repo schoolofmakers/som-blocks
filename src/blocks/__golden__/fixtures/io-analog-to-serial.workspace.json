@@ -1,0 +1,49 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_serial_println",
+        "id": "print",
+        "x": 20,
+        "y": 20,
+        "inputs": {
+          "VALUE": {
+            "block": { "type": "som_io_analog_read", "id": "read", "fields": { "PIN": "A0" } }
+          }
+        },
+        "next": {
+          "block": {
+            "type": "som_serial_plot",
+            "id": "plot",
+            "fields": { "LABEL": "luz" },
+            "inputs": {
+              "VALUE": {
+                "block": { "type": "som_io_analog_read", "id": "read2", "fields": { "PIN": "A1" } }
+              }
+            },
+            "next": {
+              "block": {
+                "type": "som_io_analog_write",
+                "id": "pwm",
+                "fields": { "PIN": "9" },
+                "inputs": {
+                  "VALUE": { "block": { "type": "golden_number", "fields": { "NUM": "128" } } }
+                },
+                "next": {
+                  "block": {
+                    "type": "som_time_delay_ms",
+                    "id": "wait",
+                    "inputs": {
+                      "MS": { "block": { "type": "golden_number", "fields": { "NUM": "100" } } }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}
