@@ -30,12 +30,21 @@ const begin = (baud: string): BlockState => ({ type: 'som_serial_begin', fields:
 describe('time', () => {
   it('empty inputs fall back to 0', () => {
     const code = generate(stack({ type: 'som_time_delay_ms' }, { type: 'som_time_delay_s' }));
-    expect(code).toContain('delay(0);\n  delay((unsigned long)(0 * 1000));');
+    expect(code).toContain('delay(0);\n  delay((unsigned long)(0 * 1000.0));');
   });
 
   it('delay in seconds converts to whole milliseconds', () => {
     const code = generate({ type: 'som_time_delay_s', inputs: { SECONDS: { block: num(1.5) } } });
-    expect(code).toContain('delay((unsigned long)(1.5 * 1000));');
+    expect(code).toContain('delay((unsigned long)(1.5 * 1000.0));');
+  });
+
+  it('integer seconds multiply in floating point (no 16-bit int overflow on AVR)', () => {
+    // analogRead() is an int; `int * 1000` overflows above 32 on UNO/NANO.
+    const code = generate({
+      type: 'som_time_delay_s',
+      inputs: { SECONDS: { block: { type: 'som_io_analog_read', fields: { PIN: 'A0' } } } },
+    });
+    expect(code).toContain('delay((unsigned long)(analogRead(A0) * 1000.0));');
   });
 
   it('every N ms: one static timer per block, non-blocking check in loop', () => {

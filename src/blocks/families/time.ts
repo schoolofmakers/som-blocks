@@ -68,7 +68,9 @@ export const timeFamily: BlockFamily = {
     },
     som_time_delay_s: (block, generator) => {
       const seconds = generator.valueToCode(block, 'SECONDS', Order.MULTIPLICATIVE) || '0';
-      return `delay((unsigned long)(${seconds} * 1000));\n`;
+      // 1000.0, not 1000: an int input (analogRead, a counter) times 1000 overflows AVR's
+      // 16-bit int above 32 s before the cast. Floating point also keeps 0.5 s exact.
+      return `delay((unsigned long)(${seconds} * 1000.0));\n`;
     },
     som_time_millis: () => ['millis()', Order.POSTFIX],
     som_time_every: (block, generator) => {
