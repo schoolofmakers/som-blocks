@@ -45,6 +45,7 @@ interface BlocklyWorkspaceProps {
 export function BlocklyWorkspace({ lang, onCodeChange, boardId }: BlocklyWorkspaceProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
+  const lastBoardId = useRef(boardId);
   const onCodeRef = useRef(onCodeChange);
   // Blocks survive a re-inject (language change, StrictMode double mount).
   const savedState = useRef<ReturnType<typeof Blockly.serialization.workspaces.save> | null>(null);
@@ -87,8 +88,11 @@ export function BlocklyWorkspace({ lang, onCodeChange, boardId }: BlocklyWorkspa
     };
   }, [lang]);
 
-  // A board change emits no workspace event, so regenerate explicitly.
+  // A board change emits no workspace event, so regenerate explicitly. Mount (and a
+  // StrictMode re-run) already emitted from the inject effect, so only real changes count.
   useEffect(() => {
+    if (lastBoardId.current === boardId) return;
+    lastBoardId.current = boardId;
     const workspace = workspaceRef.current;
     if (workspace) onCodeRef.current?.(arduinoGenerator.workspaceToCode(workspace));
   }, [boardId]);

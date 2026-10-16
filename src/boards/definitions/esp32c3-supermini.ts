@@ -58,6 +58,11 @@ export const esp32c3SuperMini: BoardDefinition = {
     builtinLed: '8',
     builtinLedActiveLow: true,
     analogMax: 4095,
+    // Core defaults from arduino-esp32 variants/esp32c3/pins_arduino.h. SDA shares GPIO 8
+    // with the LED on the SuperMini.
+    i2c: { sda: '8', scl: '9' },
+    spi: { mosi: '6', miso: '5', sck: '4', ss: '7' },
+    uart: { rx: '20', tx: '21' },
   },
   notes:
     'GPIO 2, 8 and 9 are strapping pins (GPIO 9 is the BOOT button). GPIO 20/21 are UART0 RX/TX.',

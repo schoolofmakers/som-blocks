@@ -44,3 +44,8 @@ export const ATMEGA328_ANALOG: readonly PinOption[] = [
 export const ATMEGA328_BUILTIN_LED = '13';
 /** 10-bit ADC. */
 export const ATMEGA328_ANALOG_MAX = 1023;
+
+// Fixed hardware buses of the ATmega328P (Arduino avr core, variants/standard).
+export const ATMEGA328_I2C = { sda: 'A4', scl: 'A5' };
+export const ATMEGA328_SPI = { mosi: '11', miso: '12', sck: '13', ss: '10' };
+export const ATMEGA328_UART = { rx: '0', tx: '1' };

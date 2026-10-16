@@ -17,6 +17,11 @@ export interface PinProfile {
   builtinLedActiveLow: boolean;
   /** Largest `analogRead` value: 1023 on AVR (10-bit), 4095 on the C3 (12-bit). */
   analogMax: number;
+  /** Default bus pins of the Arduino core variant (what `Wire.begin()`, `SPI.begin()` and
+   * `Serial` use with no arguments). Values as emitted in code. */
+  i2c: { sda: string; scl: string };
+  spi: { mosi: string; miso: string; sck: string; ss: string };
+  uart: { rx: string; tx: string };
 }
 
 let current: PinProfile = esp32c3SuperMini.pins;

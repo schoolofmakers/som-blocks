@@ -51,6 +51,14 @@ describe('board registry data', () => {
     expect([1023, 4095]).toContain(analogMax);
   });
 
+  it.each(BOARDS)('$id: i2c, spi and uart pins are digital or analog pins', (board) => {
+    const { digital, analog, i2c, spi, uart } = board.pins;
+    const known = new Set([...digital, ...analog].map(([, value]) => value));
+    for (const value of [...Object.values(i2c), ...Object.values(spi), ...Object.values(uart)]) {
+      expect(known.has(value)).toBe(true);
+    }
+  });
+
   it('PWM pins are digital pins', () => {
     for (const board of BOARDS) {
       const digital = new Set(board.pins.digital.map(([, value]) => value));
@@ -80,11 +88,15 @@ describe('board registry data', () => {
     ]);
     expect(c3.pins.analog.map(([, v]) => v)).toEqual(['0', '1', '2', '3', '4']);
     expect(c3.usbFilters).toEqual([{ usbVendorId: 0x303a }]);
+    expect(c3.pins.i2c).toEqual({ sda: '8', scl: '9' });
+    expect(c3.pins.uart).toEqual({ rx: '20', tx: '21' });
 
     const uno = getBoard('uno');
     expect(uno.upload).toEqual({ tool: 'avrgirl', avrgirlBoard: 'uno', baud: 115200 });
     expect(uno.pins.pwm.map(([, v]) => v)).toEqual(['3', '5', '6', '9', '10', '11']);
     expect(uno.pins.analog.map(([, v]) => v)).toEqual(['A0', 'A1', 'A2', 'A3', 'A4', 'A5']);
+    expect(uno.pins.i2c).toEqual({ sda: 'A4', scl: 'A5' });
+    expect(uno.pins.spi).toEqual({ mosi: '11', miso: '12', sck: '13', ss: '10' });
 
     const nano = getBoard('nano-old');
     expect(nano.upload).toEqual({ tool: 'avrgirl', avrgirlBoard: 'nano', baud: 57600 });

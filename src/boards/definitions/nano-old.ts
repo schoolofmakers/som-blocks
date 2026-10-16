@@ -4,7 +4,10 @@ import {
   ATMEGA328_ANALOG_MAX,
   ATMEGA328_BUILTIN_LED,
   ATMEGA328_DIGITAL,
+  ATMEGA328_I2C,
   ATMEGA328_PWM,
+  ATMEGA328_SPI,
+  ATMEGA328_UART,
 } from './atmega328-pins';
 
 // Source: _config/boards.md, `nano-old` row (verified 2026-10-16 on hardware).
@@ -28,6 +31,9 @@ export const nanoOld: BoardDefinition = {
     builtinLed: ATMEGA328_BUILTIN_LED,
     builtinLedActiveLow: false,
     analogMax: ATMEGA328_ANALOG_MAX,
+    i2c: ATMEGA328_I2C,
+    spi: ATMEGA328_SPI,
+    uart: ATMEGA328_UART,
   },
   notes: 'Clones with the old (57600 baud) bootloader, common with CH340 USB chips.',
 };

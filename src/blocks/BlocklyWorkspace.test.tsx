@@ -45,6 +45,8 @@ describe('BlocklyWorkspace', () => {
       <BlocklyWorkspace lang="es" onCodeChange={onCodeChange} boardId="esp32c3-supermini" />,
     );
     const workspace = Blockly.getMainWorkspace();
+    // Mount emits once (from the inject effect), not again from the board effect.
+    expect(onCodeChange).toHaveBeenCalledTimes(1);
     onCodeChange.mockClear();
     rerender(<BlocklyWorkspace lang="es" onCodeChange={onCodeChange} boardId="uno" />);
     expect(onCodeChange).toHaveBeenCalledTimes(1);
