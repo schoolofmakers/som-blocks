@@ -66,8 +66,9 @@ function configurePin(block: Blockly.Block, generator: ArduinoGenerator): string
 }
 
 /** Dropdown options read from the active pin profile each time the menu is built. */
-const pinOptions = (pick: (profile: ReturnType<typeof currentPinProfile>) => PinOption[]) => () =>
-  pick(currentPinProfile()).map(([label, value]): [string, string] => [label, value]);
+const pinOptions =
+  (pick: (profile: ReturnType<typeof currentPinProfile>) => readonly PinOption[]) => () =>
+    pick(currentPinProfile()).map(([label, value]): [string, string] => [label, value]);
 
 /** analogRead tooltip with the active board's maximum (1023 on AVR, 4095 on ESP32). */
 function analogReadTooltip(): string {

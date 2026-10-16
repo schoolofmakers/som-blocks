@@ -67,7 +67,7 @@ test('board picker defaults to the C3, switches to UNO and persists across reloa
 
   await picker.selectOption('uno');
   await expect(page.getByTestId('board-chip')).toHaveText('AVR');
-  // No pin blocks exist yet (B4), so the sketch is board-independent; it must still render.
+  // The empty workspace's sketch is board-independent; it must still render after a switch.
   await expect(page.getByTestId('generated-code')).toContainText('void loop() {');
 
   await page.reload();

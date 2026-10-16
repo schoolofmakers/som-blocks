@@ -8,13 +8,16 @@ import {
   stack,
   type BlockState,
 } from '../__golden__/test-support';
+import { uno } from '../../boards/definitions/uno';
 import { registerBuiltInFamilies } from '../index';
+import { setPinProfile } from '../pins';
 import { applyLocale, registerFamily } from '../registry';
 
 beforeAll(() => {
   registerBuiltInFamilies();
   registerFamily(goldenLiteralsFamily);
   applyLocale('es');
+  setPinProfile(uno.pins); // the analogRead(A0) case needs an AVR pin list
 });
 
 afterEach(() => {

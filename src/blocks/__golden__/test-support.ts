@@ -1,6 +1,5 @@
 import * as Blockly from 'blockly/core';
 import { arduinoGenerator, Order } from '../arduino-generator';
-import type { PinProfile } from '../pins';
 import type { BlockFamily } from '../types';
 
 // Test-only helpers for golden fixtures and family unit tests.
@@ -79,23 +78,4 @@ export const goldenLiteralsFamily: BlockFamily = {
   },
   toolbox: [],
   messages: { es: {}, en: {} },
-};
-
-/**
- * ESP32-C3 SuperMini-like profile (variants/nologo_esp32c3_super_mini in arduino-esp32):
- * blue LED on GPIO 8, active-low; ADC1 on GPIO 0–4; 12-bit analogRead. B5 owns the real one.
- */
-export const C3_LIKE_PROFILE: PinProfile = {
-  digital: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '20', '21'].map((v) => [
-    `GPIO ${v}`,
-    v,
-  ]),
-  analog: ['0', '1', '2', '3', '4'].map((v) => [`GPIO ${v}`, v]),
-  pwm: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '20', '21'].map((v) => [
-    `GPIO ${v}`,
-    v,
-  ]),
-  builtinLed: '8',
-  builtinLedActiveLow: true,
-  analogMax: 4095,
 };

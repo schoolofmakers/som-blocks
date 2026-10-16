@@ -1,20 +1,22 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { DEFAULT_PIN_PROFILE, setPinProfile, type PinProfile } from '../pins';
+import { esp32c3SuperMini } from '../../boards/definitions/esp32c3-supermini';
+import { uno } from '../../boards/definitions/uno';
+import { setPinProfile, type PinProfile } from '../pins';
 import { registerFamily } from '../registry';
 import { goldenFixtureNames, runGolden } from './harness';
-import { C3_LIKE_PROFILE, goldenLiteralsFamily } from './test-support';
+import { goldenLiteralsFamily } from './test-support';
 
 const fixtures = goldenFixtureNames();
 
-// Fixtures generated with a board other than the default (UNO-like) pin profile.
+// Board each fixture is generated for; fixtures not listed use the Arduino UNO.
 const FIXTURE_PROFILES: Record<string, PinProfile> = {
-  'io-builtin-led-c3': C3_LIKE_PROFILE,
+  'io-builtin-led-c3': esp32c3SuperMini.pins,
 };
 
 registerFamily(goldenLiteralsFamily);
 
 afterEach(() => {
-  setPinProfile(DEFAULT_PIN_PROFILE);
+  setPinProfile(uno.pins);
 });
 
 describe('golden: workspace JSON → .ino', () => {
@@ -37,7 +39,7 @@ describe('golden: workspace JSON → .ino', () => {
   });
 
   it.each(fixtures)('%s', async (name) => {
-    setPinProfile(FIXTURE_PROFILES[name] ?? DEFAULT_PIN_PROFILE);
+    setPinProfile(FIXTURE_PROFILES[name] ?? uno.pins);
     await runGolden(name);
   });
 });

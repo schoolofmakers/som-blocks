@@ -1,7 +1,6 @@
 import * as Blockly from 'blockly/core';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
-  C3_LIKE_PROFILE,
   disposeTestWorkspace,
   generate,
   goldenLiteralsFamily,
@@ -11,7 +10,9 @@ import {
   type BlockState,
 } from '../__golden__/test-support';
 import { registerBuiltInFamilies } from '../index';
-import { DEFAULT_PIN_PROFILE, setPinProfile } from '../pins';
+import { esp32c3SuperMini } from '../../boards/definitions/esp32c3-supermini';
+import { uno } from '../../boards/definitions/uno';
+import { setPinProfile } from '../pins';
 import { applyLocale, registerFamily } from '../registry';
 
 const write = (pin: string, state = 'HIGH'): BlockState => ({
@@ -28,11 +29,13 @@ beforeAll(() => {
   registerBuiltInFamilies();
   registerFamily(goldenLiteralsFamily);
   applyLocale('es');
+  // Tests below assume the UNO unless they switch board (the app default is the C3).
+  setPinProfile(uno.pins);
 });
 
 afterEach(() => {
   disposeTestWorkspace();
-  setPinProfile(DEFAULT_PIN_PROFILE);
+  setPinProfile(uno.pins);
 });
 
 describe('io: pinMode keyed by pin', () => {
@@ -94,14 +97,14 @@ describe('io: pinMode keyed by pin', () => {
 });
 
 describe('io: built-in LED follows the pin profile', () => {
-  it('UNO-like: pin 13, active-high', () => {
+  it('UNO: pin 13, active-high', () => {
     const code = generate(stack(led('ON'), led('OFF')));
     expect(code).toContain('pinMode(13, OUTPUT);');
     expect(code).toContain('digitalWrite(13, HIGH);\n  digitalWrite(13, LOW);');
   });
 
-  it('C3-like: GPIO 8, active-low, never LED_BUILTIN', () => {
-    setPinProfile(C3_LIKE_PROFILE);
+  it('C3 SuperMini: GPIO 8, active-low, never LED_BUILTIN', () => {
+    setPinProfile(esp32c3SuperMini.pins);
     const code = generate(stack(led('ON'), led('OFF')));
     expect(code).toContain('pinMode(8, OUTPUT);');
     expect(code).toContain('digitalWrite(8, LOW);\n  digitalWrite(8, HIGH);');
@@ -116,7 +119,7 @@ describe('io: built-in LED follows the pin profile', () => {
 
 describe('io: dropdowns and tooltips read the active profile', () => {
   it('pin dropdowns list the profile pins', () => {
-    setPinProfile(C3_LIKE_PROFILE);
+    setPinProfile(esp32c3SuperMini.pins);
     const ws = load({ type: 'som_io_analog_read' }, { type: 'som_io_digital_write' });
     const [analog, digital] = ws.getTopBlocks(true);
     const values = (b: Blockly.Block | undefined) =>
@@ -134,7 +137,7 @@ describe('io: dropdowns and tooltips read the active profile', () => {
       return typeof t === 'function' ? t() : t;
     };
     expect(tooltip()).toContain('1023');
-    setPinProfile(C3_LIKE_PROFILE);
+    setPinProfile(esp32c3SuperMini.pins);
     expect(tooltip()).toContain('4095');
     expect(tooltip()).not.toContain('1023');
   });
