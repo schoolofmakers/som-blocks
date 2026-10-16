@@ -5,7 +5,8 @@
 const es = {
   UI_APP_TITLE: 'SoM Blocks',
   UI_TAGLINE: 'Programa tu placa con bloques',
-  UI_WORKSPACE_PLACEHOLDER: 'Aquí aparecerá tu espacio de bloques',
+  UI_WORKSPACE_LABEL: 'Espacio de bloques',
+  UI_GENERATED_CODE: 'Código generado',
   UI_FOOTER: 'Hecho por School of Makers',
 } as const;
 
@@ -15,7 +16,8 @@ export type MessageKey = keyof typeof es;
 const en: Partial<Record<MessageKey, string>> = {
   UI_APP_TITLE: 'SoM Blocks',
   UI_TAGLINE: 'Program your board with blocks',
-  UI_WORKSPACE_PLACEHOLDER: 'Your blocks workspace will appear here',
+  UI_WORKSPACE_LABEL: 'Blocks workspace',
+  UI_GENERATED_CODE: 'Generated code',
   UI_FOOTER: 'Made by School of Makers',
 };
 

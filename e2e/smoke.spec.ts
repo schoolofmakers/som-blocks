@@ -11,3 +11,48 @@ test('?lang=en switches the shell to English', async ({ page }) => {
   await expect(page.getByText('Program your board with blocks')).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 });
+
+test('Blockly workspace renders with the raw toolbox category and generated code', async ({
+  page,
+}) => {
+  const mediaRequests: string[] = [];
+  page.on('request', (request) => {
+    if (/blockly-media|static\.blockly\.com/.test(request.url())) mediaRequests.push(request.url());
+  });
+
+  await page.goto('/?lang=es');
+  // The main workspace, not the (hidden) flyout workspace.
+  await expect(page.locator('svg.blocklySvg > g.blocklyWorkspace')).toBeVisible();
+  await expect(page.getByRole('treeitem', { name: 'Código' })).toBeVisible();
+  await expect(page.getByTestId('generated-code')).toContainText('void setup() {');
+  await expect(page.getByTestId('generated-code')).toContainText('void loop() {');
+
+  // Blockly media (sprites, sounds) must come from our own bundle, never the Blockly CDN.
+  await expect.poll(() => mediaRequests.length).toBeGreaterThan(0);
+  const origin = new URL(page.url()).origin;
+  for (const url of mediaRequests) expect(url.startsWith(`${origin}/blockly-media/`)).toBe(true);
+});
+
+test('dragging a raw block from the toolbox updates the generated code', async ({ page }) => {
+  await page.goto('/?lang=en');
+  await page.getByRole('treeitem', { name: 'Code' }).click();
+  // First flyout block is `include library [Wire.h]`.
+  const flyoutBlock = page.locator('.blocklyFlyout .blocklyDraggable').first();
+  await expect(flyoutBlock).toBeVisible();
+
+  const workspace = page.locator('.blocklyMainBackground');
+  const target = await workspace.boundingBox();
+  const source = await flyoutBlock.boundingBox();
+  if (!target || !source) throw new Error('workspace or flyout block has no box');
+  await page.mouse.move(source.x + 10, source.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  await expect(page.getByTestId('generated-code')).toContainText('#include <Wire.h>');
+  // The flyout closed after the drop; its scrollbar must hide with it (src/index.css fix
+  // for Tailwind preflight's `svg { display: block }`).
+  const flyoutScrollbar = page.locator('.blocklyToolboxFlyout + .blocklyFlyoutScrollbar');
+  await expect(flyoutScrollbar).toHaveCount(1);
+  await expect(flyoutScrollbar).toBeHidden();
+});
