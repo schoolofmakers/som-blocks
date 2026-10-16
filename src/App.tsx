@@ -6,6 +6,7 @@ import { CompileButton } from './compile/CompileButton';
 import { LogPanel } from './compile/LogPanel';
 import { ServerSettings } from './compile/ServerSettings';
 import { DEFAULT_LANG, t, type Lang } from './i18n/messages';
+import { ConnectButton } from './transport/ConnectScreen';
 
 interface AppProps {
   lang?: Lang;
@@ -26,6 +27,7 @@ export function App({ lang = DEFAULT_LANG }: AppProps) {
           <BoardPicker lang={lang} />
           <ServerSettings lang={lang} />
           <CompileButton lang={lang} code={code} boardId={boardId} />
+          <ConnectButton lang={lang} />
         </div>
       </header>
       <main className="flex flex-1 flex-col gap-4 p-4 lg:flex-row">

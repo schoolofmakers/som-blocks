@@ -31,6 +31,44 @@ const es = {
   UI_SERVER_URL: 'Dirección del servidor de compilación',
   UI_SAVE: 'Guardar',
   UI_RESET_DEFAULT: 'Usar el predeterminado',
+  UI_CONNECT_STATUS_DISCONNECTED: 'Conectar',
+  UI_CONNECT_STATUS_CONNECTING: 'Conectando…',
+  UI_CONNECT_STATUS_CONNECTED: 'Conectada',
+  UI_CONNECT_STATUS_ERROR: 'Sin conexión',
+  UI_CONNECT_TITLE: 'Conectar tu placa',
+  UI_CONNECT_CLOSE: 'Cerrar',
+  UI_CONNECT_BOARD: 'Placa elegida',
+  UI_CONNECT_SUPPORT_TITLE: 'Qué funciona en este navegador',
+  UI_CONNECT_ROW_USB: 'USB (cable)',
+  UI_CONNECT_ROW_WIFI: 'WiFi',
+  UI_CONNECT_USB_YES: 'Disponible',
+  UI_CONNECT_USB_NO: 'No disponible',
+  UI_CONNECT_WIFI_COMING: 'Próximamente',
+  UI_CONNECT_USB_BUTTON: 'Conectar por USB',
+  UI_CONNECT_ANY_PORT_HINT: '¿No aparece tu placa en la lista?',
+  UI_CONNECT_ANY_PORT_BUTTON: 'Mostrar todos los puertos',
+  UI_CONNECT_REMEMBERED: 'Placas que ya usaste',
+  UI_CONNECT_RECONNECT: 'Reconectar',
+  UI_CONNECT_CONNECTED_TO: 'Conectada a',
+  UI_CONNECT_UNKNOWN_PORT: 'puerto serie',
+  UI_CONNECT_DISCONNECT: 'Desconectar',
+  UI_SUPPORT_REASON_IOS:
+    'En iPhone y iPad ningún navegador puede usar USB. Pronto podrás subir programas por WiFi.',
+  UI_SUPPORT_REASON_ANDROID:
+    'En Android el navegador no puede usar USB. Pronto podrás subir programas por WiFi.',
+  UI_SUPPORT_REASON_FIREFOX: 'Firefox no puede usar USB. Abre el editor en Chrome o Edge.',
+  UI_SUPPORT_REASON_SAFARI: 'Safari no puede usar USB. Abre el editor en Chrome o Edge.',
+  UI_SUPPORT_REASON_NO_SERIAL:
+    'Este navegador no deja usar USB aquí. Abre el editor en Chrome o Edge actualizado, en un computador.',
+  UI_CONNECT_ERROR_UNSUPPORTED: 'Este navegador no puede usar USB.',
+  UI_CONNECT_ERROR_CANCELLED:
+    'No elegiste ningún puerto. Si tu placa no aparece, prueba con «Mostrar todos los puertos».',
+  UI_CONNECT_ERROR_BLOCKED:
+    'El navegador bloqueó el acceso USB. Revisa los permisos del sitio y vuelve a intentar.',
+  UI_CONNECT_ERROR_OPEN_FAILED:
+    'No se pudo abrir el puerto. Cierra otras pestañas o el Arduino IDE si lo están usando, y vuelve a intentar.',
+  UI_CONNECT_ERROR_DISCONNECTED: 'Se desconectó la placa. Revisa el cable y vuelve a conectar.',
+  UI_CONNECT_ERROR_UNKNOWN: 'Algo falló al conectar. Desconecta el cable y vuelve a intentar.',
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -64,6 +102,45 @@ const en: Partial<Record<MessageKey, string>> = {
   UI_SERVER_URL: 'Compile server address',
   UI_SAVE: 'Save',
   UI_RESET_DEFAULT: 'Use the default',
+  UI_CONNECT_STATUS_DISCONNECTED: 'Connect',
+  UI_CONNECT_STATUS_CONNECTING: 'Connecting…',
+  UI_CONNECT_STATUS_CONNECTED: 'Connected',
+  UI_CONNECT_STATUS_ERROR: 'Not connected',
+  UI_CONNECT_TITLE: 'Connect your board',
+  UI_CONNECT_CLOSE: 'Close',
+  UI_CONNECT_BOARD: 'Selected board',
+  UI_CONNECT_SUPPORT_TITLE: 'What works in this browser',
+  UI_CONNECT_ROW_USB: 'USB (cable)',
+  UI_CONNECT_ROW_WIFI: 'WiFi',
+  UI_CONNECT_USB_YES: 'Available',
+  UI_CONNECT_USB_NO: 'Not available',
+  UI_CONNECT_WIFI_COMING: 'Coming soon',
+  UI_CONNECT_USB_BUTTON: 'Connect over USB',
+  UI_CONNECT_ANY_PORT_HINT: 'Is your board missing from the list?',
+  UI_CONNECT_ANY_PORT_BUTTON: 'Show all ports',
+  UI_CONNECT_REMEMBERED: 'Boards you used before',
+  UI_CONNECT_RECONNECT: 'Reconnect',
+  UI_CONNECT_CONNECTED_TO: 'Connected to',
+  UI_CONNECT_UNKNOWN_PORT: 'serial port',
+  UI_CONNECT_DISCONNECT: 'Disconnect',
+  UI_SUPPORT_REASON_IOS:
+    'On iPhone and iPad no browser can use USB. Soon you will be able to upload over WiFi.',
+  UI_SUPPORT_REASON_ANDROID:
+    'On Android the browser cannot use USB. Soon you will be able to upload over WiFi.',
+  UI_SUPPORT_REASON_FIREFOX: 'Firefox cannot use USB. Open the editor in Chrome or Edge.',
+  UI_SUPPORT_REASON_SAFARI: 'Safari cannot use USB. Open the editor in Chrome or Edge.',
+  UI_SUPPORT_REASON_NO_SERIAL:
+    'This browser does not allow USB here. Open the editor in an up-to-date Chrome or Edge, on a computer.',
+  UI_CONNECT_ERROR_UNSUPPORTED: 'This browser cannot use USB.',
+  UI_CONNECT_ERROR_CANCELLED:
+    'You did not pick a port. If your board is missing, try “Show all ports”.',
+  UI_CONNECT_ERROR_BLOCKED:
+    'The browser blocked USB access. Check the site permissions and try again.',
+  UI_CONNECT_ERROR_OPEN_FAILED:
+    'The port could not be opened. Close other tabs or the Arduino IDE if they are using it, and try again.',
+  UI_CONNECT_ERROR_DISCONNECTED: 'The board was disconnected. Check the cable and connect again.',
+  UI_CONNECT_ERROR_UNKNOWN:
+    'Something went wrong while connecting. Unplug the cable and try again.',
 };
 
 export const SUPPORTED_LANGS = ['es', 'en'] as const;

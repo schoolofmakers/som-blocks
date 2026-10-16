@@ -10,6 +10,7 @@
   --som-border: #cbd5e1;
   --som-accent: #0e7490;
   --som-ok: #15803d;
+  --som-warn: #b45309;
   --som-danger: #b91c1c;
   color-scheme: light;
 }
@@ -23,6 +24,7 @@
     --som-border: #334155;
     --som-accent: #22d3ee;
     --som-ok: #4ade80;
+    --som-warn: #fbbf24;
     --som-danger: #f87171;
     color-scheme: dark;
   }
@@ -36,6 +38,7 @@
   --color-border: var(--som-border);
   --color-accent: var(--som-accent);
   --color-ok: var(--som-ok);
+  --color-warn: var(--som-warn);
   --color-danger: var(--som-danger);
 }
 
