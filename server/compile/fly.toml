@@ -1,0 +1,39 @@
+# Fly.io config for the som-blocks compile server (duinoapp-server + esp32 core).
+# First deploy: `fly launch --copy-config --no-deploy` then `fly deploy` (from server/compile).
+
+app = "som-compile"
+# Fly has no Santiago (scl) region; São Paulo is the closest to Chile.
+primary_region = "gru"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3030"
+
+[http_service]
+  internal_port = 3030
+  force_https = true
+  # Keep a machine warm: a cold start plus an esp32 compile would blow the
+  # editor's ~30 s compile budget.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 4
+    hard_limit = 8
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/v3/info/server"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "30s"
+
+[[vm]]
+  # arduino-cli esp32 builds (gcc + linker on the IDF libs) need ~1.5 GB peak.
+  memory = "2048mb"
+  cpu_kind = "shared"
+  cpus = 2
