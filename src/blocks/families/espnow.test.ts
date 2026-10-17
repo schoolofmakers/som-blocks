@@ -218,6 +218,21 @@ describe('espnow on the ESP32-C3', () => {
     expect(code).toContain('while (somEspNowNext(som_espnow_read2, nullptr))');
   });
 
+  it('student variables named like the ESP-NOW library functions are renamed', () => {
+    const names = ['esp_now_send', 'esp_now_init', 'strncpy', 'ESP_OK'];
+    const code = generate(
+      stack(
+        name('a'),
+        ...names.map((n): BlockState => ({
+          type: 'variables_set',
+          fields: { VAR: { id: n, name: n } },
+          inputs: { VALUE: { block: num(1) } },
+        })),
+      ),
+    );
+    for (const n of names) expect(code).toContain(`double ${n}2 = 0;`);
+  });
+
   it('a student variable named like a helper is renamed', () => {
     const variable: BlockState = {
       type: 'variables_set',

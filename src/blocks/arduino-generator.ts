@@ -71,6 +71,12 @@ export const RESERVED_WORDS: readonly string[] = [
   'somEspNowMe,somEspNowLock,somEspNowReady,somEspNowValue,somEspNowFrom,somEspNowCopy',
   'somEspNowOnRecv,somEspNowOnSent,somEspNowBegin,somEspNowSend,somEspNowNext',
   'SOM_ESPNOW_BROADCAST,SOM_ESPNOW_CHANNEL,SOM_ESPNOW_QUEUE_SIZE',
+  // ESP-IDF ESP-NOW / WiFi API and the C string functions those helpers call
+  'esp_now_init,esp_now_deinit,esp_now_add_peer,esp_now_send,esp_now_register_recv_cb',
+  'esp_now_register_send_cb,esp_now_peer_info_t,esp_now_recv_info_t,esp_now_send_info_t',
+  'esp_now_send_status_t,ESP_NOW_SEND_SUCCESS,ESP_NOW_MAX_DATA_LEN,esp_wifi_set_channel',
+  'WIFI_SECOND_CHAN_NONE,WIFI_IF_STA,ESP_OK,ESP_IDF_VERSION,ESP_IDF_VERSION_VAL',
+  'memcpy,memset,strcmp,strncpy,strnlen',
   // Not here on purpose: helper names the generators allocate through nameDB_ after the
   // student's names are claimed (som_every, som_ble_seen, isPrime, randomInt,
   // constrainValue). Reserving them would rename the helpers themselves (som_every2…);
