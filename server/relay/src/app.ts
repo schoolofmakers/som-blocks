@@ -44,6 +44,8 @@ const MAX_DEVICES = 10_000;
 const IMAGE_CHUNK = 16 * 1024;
 const MAX_FIELD = 64;
 const MAX_DETAIL = 500;
+/** How long a closing SSE stream may take to flush its queued events. */
+const SSE_FLUSH_MS = 5_000;
 
 type Bucket = keyof RelayConfig['limits'];
 
@@ -58,6 +60,8 @@ export function createRelay(opts: RelayOptions = {}) {
       inputQueueLines: config.inputQueueLines,
     });
   const hub = new Hub();
+  /** Bytes reserved by uploads whose bodies are still being read. */
+  let reservedImageBytes = 0;
   const limiter = new RateLimiter(now);
   const app = new Hono();
 
@@ -75,7 +79,12 @@ export function createRelay(opts: RelayOptions = {}) {
     return c.json({ error: 'rate_limited' }, 429);
   };
 
-  /** Bearer token matching the stored hash of an existing device, or an error response. */
+  /**
+   * Bearer token matching the stored hash of an existing device, or an error response.
+   * Handlers call it again after every await (body read, long-poll wait): the record may have
+   * been deleted, expired or re-paired with another token in the meantime, and nothing that
+   * arrives late may be written to, or read from, the record that replaced it.
+   */
   const authDevice = (c: Context): { device: DeviceRecord } | { res: Response } => {
     const id = c.req.param('id') ?? '';
     if (!DEVICE_ID_RE.test(id)) return { res: fail(c, 400, 'bad_device_id') };
@@ -172,9 +181,9 @@ export function createRelay(opts: RelayOptions = {}) {
     const ready = deliver();
     if (ready) return ready;
     const outcome = await hub.wait(device.id, kind, wait * 1000, c.req.raw.signal);
-    const current = store.getDevice(device.id);
-    if (!current) return fail(c, 404, 'unknown_device');
-    if (outcome !== 'aborted') touch(current);
+    const again = authDevice(c);
+    if ('res' in again) return again.res;
+    if (outcome !== 'aborted') touch(again.device);
     return (outcome === 'woken' && deliver()) || c.body(null, 204);
   };
 
@@ -264,6 +273,9 @@ export function createRelay(opts: RelayOptions = {}) {
     if (limited) return limited;
     if (rotate) {
       device.tokenHash = hashToken(token);
+      // Streams and polls opened with the old token end now; their handlers re-check the
+      // token before answering, so the old token gets nothing more.
+      hub.closeDevice(id);
       log.info('device token rotated', { deviceId: id });
     }
     device.fw = fw;
@@ -323,11 +335,13 @@ export function createRelay(opts: RelayOptions = {}) {
   app.post('/v1/devices/:id/status', async (c) => {
     const auth = authDevice(c);
     if ('res' in auth) return auth.res;
-    const { device } = auth;
-    const limited = rateLimit(c, device.id, 'control');
+    const limited = rateLimit(c, auth.device.id, 'control');
     if (limited) return limited;
     const body = await readJson(c, config.maxJsonBodyBytes);
     if ('res' in body) return body.res;
+    const again = authDevice(c);
+    if ('res' in again) return again.res;
+    const device = again.device;
     const { buildId, state, detail } = body.value;
     if (
       typeof buildId !== 'string' ||
@@ -340,18 +354,25 @@ export function createRelay(opts: RelayOptions = {}) {
     if (!build || build.deviceId !== device.id) return fail(c, 404, 'unknown_build');
     if (device.pendingBuildId === build.id) device.pendingBuildId = null;
     touch(device);
-    setBuildState(build, state as DeviceBuildState, detail?.slice(0, MAX_DETAIL));
+    // Terminal states are final: a late or repeated report (e.g. `downloading` for a build
+    // that was replaced meanwhile) is acknowledged and ignored, so a reconnecting editor
+    // still reads the real outcome.
+    if (!TERMINAL_BUILD_STATES.includes(build.state)) {
+      setBuildState(build, state as DeviceBuildState, detail?.slice(0, MAX_DETAIL));
+    }
     return c.body(null, 204);
   });
 
   app.post('/v1/devices/:id/serial', async (c) => {
     const auth = authDevice(c);
     if ('res' in auth) return auth.res;
-    const { device } = auth;
-    const limited = rateLimit(c, device.id, 'serial');
+    const limited = rateLimit(c, auth.device.id, 'serial');
     if (limited) return limited;
     const body = await readJson(c, config.maxSerialBodyBytes);
     if ('res' in body) return body.res;
+    const again = authDevice(c);
+    if ('res' in again) return again.res;
+    const device = again.device;
     const { lines } = body.value;
     if (
       !Array.isArray(lines) ||
@@ -420,23 +441,35 @@ export function createRelay(opts: RelayOptions = {}) {
     if (!expectedSha || !SHA256_RE.test(expectedSha)) return fail(c, 400, 'bad_sha256_header');
     const limited = rateLimit(c, device.id, 'builds');
     if (limited) return limited;
-    const declared = Number(c.req.header('content-length') ?? config.maxImageBytes);
-    if (store.imageBytes() + Math.min(declared, config.maxImageBytes) > config.maxTotalImageBytes) {
+    // Reserve memory for this upload before reading it, so concurrent uploads cannot each
+    // pass the cap check and overshoot it together. Released on every exit path.
+    const declared = Number(c.req.header('content-length'));
+    const reserve =
+      Number.isFinite(declared) && declared >= 0
+        ? Math.min(declared, config.maxImageBytes)
+        : config.maxImageBytes;
+    if (store.imageBytes() + reservedImageBytes + reserve > config.maxTotalImageBytes) {
       log.warn('image memory full', { deviceId: device.id });
       c.header('Retry-After', '60');
       return c.json({ error: 'busy' }, 503);
     }
-
-    const body = await readLimited(c.req.raw, config.maxImageBytes);
+    reservedImageBytes += reserve;
+    let body: Awaited<ReturnType<typeof readLimited>>;
+    try {
+      body = await readLimited(c.req.raw, Math.min(reserve, config.maxImageBytes));
+    } finally {
+      reservedImageBytes -= reserve;
+    }
     if (!body.ok) return fail(c, 413, 'image_too_large');
     const image = body.bytes;
     if (image.length === 0) return fail(c, 400, 'empty_image');
     const sha256 = createHash('sha256').update(image).digest('hex');
     if (sha256 !== expectedSha.toLowerCase()) return fail(c, 400, 'sha256_mismatch');
 
-    // The device may have been deleted while the body was uploading.
-    const current = store.getDevice(device.id);
-    if (!current) return fail(c, 404, 'unknown_device');
+    // The device may have been deleted or re-paired while the body was uploading.
+    const again = authDevice(c);
+    if ('res' in again) return again.res;
+    const current = again.device;
 
     // One pending build per device: a newer upload replaces one the board has not started.
     const previous = current.pendingBuildId ? store.getBuild(current.pendingBuildId) : undefined;
@@ -465,9 +498,11 @@ export function createRelay(opts: RelayOptions = {}) {
   app.post('/v1/devices/:id/input', async (c) => {
     const auth = authDevice(c);
     if ('res' in auth) return auth.res;
-    const { device } = auth;
     const body = await readJson(c, config.maxJsonBodyBytes);
     if ('res' in body) return body.res;
+    const again = authDevice(c);
+    if ('res' in again) return again.res;
+    const device = again.device;
     const { line } = body.value;
     if (typeof line !== 'string' || line.length > config.maxInputLineChars) {
       return fail(c, 400, 'bad_input');
@@ -489,6 +524,7 @@ export function createRelay(opts: RelayOptions = {}) {
       let done!: () => void;
       const finished = new Promise<void>((resolve) => (done = resolve));
       let closed = false;
+      let overflowed = false;
       let backlog = 0;
       let chain: Promise<unknown> = Promise.resolve();
 
@@ -498,6 +534,7 @@ export function createRelay(opts: RelayOptions = {}) {
         if (closed) return;
         if (++backlog > config.sseMaxBacklog) {
           log.warn('sse backlog exceeded', { deviceId: device.id });
+          overflowed = true;
           done();
           return;
         }
@@ -540,7 +577,18 @@ export function createRelay(opts: RelayOptions = {}) {
       closed = true;
       clearInterval(heartbeat);
       unsubscribe();
-      await chain;
+      // Flush what is queued (e.g. the last status before a DELETE), but never wait on a
+      // client that stopped reading: cancelling the stream rejects its pending writes.
+      if (!overflowed) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const flushed = await Promise.race([
+          chain.then(() => true),
+          new Promise<false>((r) => (timer = setTimeout(() => r(false), SSE_FLUSH_MS))),
+        ]);
+        clearTimeout(timer);
+        if (flushed) return;
+      }
+      stream.abort();
     });
   });
 
