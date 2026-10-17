@@ -6,6 +6,7 @@ import { CodeView } from './codeview/CodeView';
 import { CompileButton } from './compile/CompileButton';
 import { LogPanel } from './compile/LogPanel';
 import { ServerSettings } from './compile/ServerSettings';
+import { SerialPanel } from './serial/SerialPanel';
 import { DEFAULT_LANG, t, type Lang } from './i18n/messages';
 import { ProjectNotice, ProjectsMenu } from './projects/ProjectsMenu';
 import { useProjectsStore } from './projects/store';
@@ -66,6 +67,7 @@ export function App({ lang = DEFAULT_LANG }: AppProps) {
           <LogPanel lang={lang} />
         </section>
       </main>
+      <SerialPanel lang={lang} />
       <footer className="border-t border-border px-4 py-2 text-xs text-muted">
         {t('UI_FOOTER', lang)}
       </footer>

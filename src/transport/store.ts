@@ -31,8 +31,15 @@ interface TransportState {
   portLabel: string | null;
   error: ConnectionError | null;
   transport: Transport | null;
+  /** Baud the open transport runs at (DEFAULT_BAUD_RATE right after connect). */
+  baudRate: number;
   connect: (boardId: string, options?: ConnectOptions) => Promise<void>;
   disconnect: () => Promise<void>;
+  /**
+   * Closes and reopens the open transport at another baud (the serial monitor's baud picker).
+   * A port that will not reopen ends the connection with an error, like a failed connect.
+   */
+  reopen: (baudRate: number) => Promise<void>;
 }
 
 const ERROR_KEYS: Record<TransportErrorCode, MessageKey> = {
@@ -65,6 +72,7 @@ export const useTransportStore = create<TransportState>()((set, get) => ({
   portLabel: null,
   error: null,
   transport: null,
+  baudRate: DEFAULT_BAUD_RATE,
 
   connect: async (boardId, options = {}) => {
     if (get().status === 'connecting') return;
@@ -117,7 +125,30 @@ export const useTransportStore = create<TransportState>()((set, get) => ({
       transport: opened,
       portLabel: portLabel(opened.nativePort.getInfo(), boardId),
       error: null,
+      baudRate: DEFAULT_BAUD_RATE,
     });
+  },
+
+  reopen: async (baudRate) => {
+    const { transport, status } = get();
+    if (!transport || status !== 'connected') return;
+    const mine = ++attempt;
+    try {
+      await transport.close();
+      // A disconnect() or connect() ran meanwhile: leave the port closed, it is not ours.
+      if (mine !== attempt) return;
+      await transport.open({ baudRate });
+    } catch (error) {
+      if (mine !== attempt) return;
+      await transport.close();
+      set({ status: 'error', error: toConnectionError(error), transport: null, portLabel: null });
+      return;
+    }
+    if (mine !== attempt) {
+      await transport.close();
+      return;
+    }
+    set({ baudRate });
   },
 
   disconnect: async () => {
