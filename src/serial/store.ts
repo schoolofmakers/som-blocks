@@ -220,8 +220,10 @@ export const useSerialStore = create<SerialState>()((set, get) => {
 
     setMuted: (muted) => {
       set({ muted });
-      // A baud chosen while muted was deferred (see applyBaud): apply the latest one now.
-      return muted ? Promise.resolve() : applyBaud();
+      // Muting waits for a baud reopen already in flight (later ones are deferred, see
+      // applyBaud), so a flasher never takes a port that is still being reopened. Unmuting
+      // applies a baud chosen while muted.
+      return muted ? baudChain : applyBaud();
     },
 
     exportLog: () => {

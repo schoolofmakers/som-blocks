@@ -31,21 +31,30 @@ export async function loadAvrgirl(): Promise<AvrgirlModule['default']> {
 }
 
 /**
- * Makes `serial.requestPort()` resolve to `port` without showing the chooser, until the
- * returned function restores the original. Shadows the method on the `navigator.serial`
- * instance; the prototype is never touched.
+ * Makes the next `serial.requestPort()` call (avrgirl's, when it opens the port) resolve to
+ * `port` without showing the chooser. One shot: that call restores the original at once, so a
+ * Connect clicked later during the upload gets the real chooser. The returned function
+ * restores it too (idempotent), for a flash that never asked. Shadows the method on the
+ * `navigator.serial` instance; the prototype is never touched.
  */
 export function lendPort(serial: SerialLike, port: unknown): () => void {
   const own = Object.getOwnPropertyDescriptor(serial, 'requestPort');
-  Object.defineProperty(serial, 'requestPort', {
-    configurable: true,
-    writable: true,
-    value: () => Promise.resolve(port),
-  });
-  return () => {
+  let lent = true;
+  const restore = () => {
+    if (!lent) return;
+    lent = false;
     if (own) Object.defineProperty(serial, 'requestPort', own);
     else delete (serial as { requestPort?: unknown }).requestPort;
   };
+  Object.defineProperty(serial, 'requestPort', {
+    configurable: true,
+    writable: true,
+    value: () => {
+      restore();
+      return Promise.resolve(port);
+    },
+  });
+  return restore;
 }
 
 const PORT_LOST = /device has been lost|NetworkError|Failed to open|could not open|not open/i;

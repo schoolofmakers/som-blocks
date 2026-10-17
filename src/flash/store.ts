@@ -162,9 +162,11 @@ export const useFlashStore = create<FlashState>()((set, get) => {
       // upload()) stay locked through the reopen.
       let failure: UploadError | null = null;
       // The serial monitor (B9) drops incoming bytes while muted: during a flash they are
-      // bootloader traffic, not the student's output.
-      void useSerialStore.getState().setMuted(true);
+      // bootloader traffic, not the student's output. Muting also waits for a baud change the
+      // monitor is still applying, so the port is not handed over mid-reopen.
+      const muting = useSerialStore.getState().setMuted(true);
       try {
+        await muting;
         // Release the port before the flasher takes it (the flashers close it too; it is
         // idempotent). Readers like the serial monitor see `isFlashing` and stay away.
         await transport.close();

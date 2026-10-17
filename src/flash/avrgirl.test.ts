@@ -192,4 +192,15 @@ describe('lendPort', () => {
     expect(Object.prototype.hasOwnProperty.call(serial, 'requestPort')).toBe(false);
     expect(await serial.requestPort()).toBe('chooser');
   });
+
+  it('is one shot: a Connect during the upload gets the real chooser', async () => {
+    const chooser = vi.fn(async () => 'chooser');
+    const serial = { requestPort: chooser, getPorts: async () => [] } as unknown as SerialLike;
+    const restore = lendPort(serial, 'lent');
+    expect(await serial.requestPort()).toBe('lent'); // avrgirl opening the port
+    expect(await serial.requestPort()).toBe('chooser'); // the student's Connect click
+    expect(chooser).toHaveBeenCalledTimes(1);
+    restore(); // idempotent
+    expect(serial.requestPort).toBe(chooser);
+  });
 });
