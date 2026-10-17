@@ -57,6 +57,9 @@ export const RESERVED_WORDS: readonly string[] = [
   'map,pow,sqrt,sq,sin,cos,tan,asin,acos,atan,atan2,exp,log,log10,fabs,fmod,floor,ceil',
   'round,random,randomSeed,lowByte,highByte,bitRead,bitWrite,bitSet,bitClear,bit',
   'attachInterrupt,detachInterrupt,interrupts,noInterrupts,yield',
+  // ESP32 WiFi globals / classes and the wifi family's helpers (families/wifi.ts)
+  'WiFi,WiFiClient,WiFiClientSecure,HTTPClient,somWifiConnect,somHttpRequest,somHttpGet',
+  'somHttpPost',
 ].flatMap((line) => line.split(','));
 
 /**

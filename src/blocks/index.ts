@@ -10,6 +10,7 @@ import { serialFamily } from './families/serial';
 import { textFamily } from './families/text';
 import { timeFamily } from './families/time';
 import { variablesFamily } from './families/variables';
+import { wifiFamily } from './families/wifi';
 import { registerFamily } from './registry';
 import type { BlockFamily } from './types';
 
@@ -25,6 +26,7 @@ export const BUILT_IN_FAMILIES: readonly BlockFamily[] = [
   ioFamily, // Entrada/Salida
   timeFamily, // Tiempo
   serialFamily, // Puerto Serie
+  wifiFamily, // WiFi (ESP32 only)
   bleFamily, // Bluetooth (full toolbox)
   rawFamily, // Código (always last, full toolbox)
 ];

@@ -12,6 +12,8 @@ const FIXTURE_BOARDS: Record<string, BoardDefinition> = {
   'io-builtin-led-c3': esp32c3SuperMini,
   'ble-start-send': esp32c3SuperMini,
   'ble-on-receive-echo': esp32c3SuperMini,
+  'wifi-connect-and-ip': esp32c3SuperMini,
+  'wifi-http-get-print': esp32c3SuperMini,
 };
 
 function selectBoard(board: BoardDefinition): void {
@@ -59,6 +61,12 @@ describe('golden: workspace JSON → .ino', () => {
   it('has the ble fixtures', () => {
     expect(fixtures).toEqual(
       expect.arrayContaining(['ble-start-send', 'ble-on-receive-echo', 'ble-on-avr-error']),
+    );
+  });
+
+  it('has the wifi fixtures', () => {
+    expect(fixtures).toEqual(
+      expect.arrayContaining(['wifi-connect-and-ip', 'wifi-http-get-print', 'wifi-on-avr-error']),
     );
   });
 

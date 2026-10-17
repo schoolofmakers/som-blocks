@@ -75,4 +75,9 @@ export interface BlockFamily {
   generators: Record<string, BlockGenerator>;
   toolbox: ToolboxCategory | ToolboxItem[];
   messages: FamilyMessages;
+  /**
+   * Blockly extensions the family's block definitions name in `extensions: [...]` (e.g. a
+   * tooltip that depends on the selected board). Names must be unique across families.
+   */
+  extensions?: Record<string, (this: Block) => void>;
 }

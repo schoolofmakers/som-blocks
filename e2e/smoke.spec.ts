@@ -164,3 +164,29 @@ test('Bluetooth is a full-toolbox category; its start block generates the BLE he
   await expect(code).toContainText('#error "Bluetooth necesita una placa ESP32');
   await expect(code).not.toContainText('BLEDevice.h');
 });
+
+test('WiFi category: connect block on the C3, a translated #error on the UNO', async ({ page }) => {
+  await page.goto('/?lang=es');
+  await page.getByRole('treeitem', { name: 'WiFi' }).click();
+  // First flyout block is `conectar a WiFi [mi-red] contraseña [contraseña]`.
+  const flyoutBlock = page.locator('.blocklyFlyout .blocklyDraggable').first();
+  await expect(flyoutBlock).toBeVisible();
+  const workspace = page.locator('.blocklyMainBackground');
+  const target = await workspace.boundingBox();
+  const source = await flyoutBlock.boundingBox();
+  if (!target || !source) throw new Error('workspace or flyout block has no box');
+  await page.mouse.move(source.x + 10, source.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  const code = page.getByTestId('generated-code');
+  await expect(code).toContainText('#include <WiFi.h>');
+  await expect(code).toContainText('WiFi.mode(WIFI_STA);');
+  await expect(code).toContainText('somWifiConnect("mi-red", "contraseña", 15000);');
+
+  // The UNO has no WiFi: no WiFi code, and the compile fails with a message students can read.
+  await page.getByRole('combobox', { name: 'Placa' }).selectOption('uno');
+  await expect(code).toContainText('#error "Los bloques WiFi solo funcionan en una placa ESP32.');
+  await expect(code).not.toContainText('#include <WiFi.h>');
+});

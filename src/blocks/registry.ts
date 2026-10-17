@@ -61,7 +61,15 @@ export function registerFamily(family: BlockFamily): void {
     }
   }
 
+  const extensions = Object.entries(family.extensions ?? {});
+  for (const [name] of extensions) {
+    if (Blockly.Extensions.isRegistered(name)) {
+      throw new Error(`Extension "${name}" of family "${family.id}" is already registered`);
+    }
+  }
+
   for (const type of declared) blockOwners.set(type, family.id);
+  for (const [name, extension] of extensions) Blockly.Extensions.register(name, extension);
   Blockly.defineBlocksWithJsonArray(family.blocks);
   for (const [type, generate] of Object.entries(family.generators)) {
     arduinoGenerator.forBlock[type] = generate;
