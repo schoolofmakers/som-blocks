@@ -1,0 +1,43 @@
+# Fly.io config for the som-blocks device relay.
+# First deploy: `fly launch --copy-config --no-deploy` then `fly deploy` (from server/relay).
+
+app = "som-relay"
+# Fly has no Santiago (scl) region; São Paulo is the closest to Chile.
+primary_region = "gru"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  # Set to the editor origin(s) once deployed, e.g. "https://blocks.schoolofmakers.cl".
+  # Unset = any origin (auth is a bearer token, never a cookie).
+  # RELAY_ALLOWED_ORIGINS = ""
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Boards hold 25 s long-polls and editors hold SSE streams; state is in memory, so the
+  # single machine must never stop (a stop drops every device record and queued build).
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # Long-polls and SSE are idle connections, not work: count connections, allow many.
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 800
+    hard_limit = 1000
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "10s"
+
+[[vm]]
+  # Images are ≤ 2 MB and held for ≤ 10 min; the relay caps them at 192 MB in total.
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
