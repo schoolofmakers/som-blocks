@@ -12,6 +12,14 @@
   --som-ok: #15803d;
   --som-warn: #b45309;
   --som-danger: #b91c1c;
+  /* Code view syntax colours (highlight.js classes, src/codeview). */
+  --som-code-comment: #64748b;
+  --som-code-keyword: #7c3aed;
+  --som-code-type: #0369a1;
+  --som-code-string: #15803d;
+  --som-code-number: #c2410c;
+  --som-code-meta: #be185d;
+  --som-code-title: #0e7490;
   color-scheme: light;
 }
 
@@ -26,6 +34,13 @@
     --som-ok: #4ade80;
     --som-warn: #fbbf24;
     --som-danger: #f87171;
+    --som-code-comment: #94a3b8;
+    --som-code-keyword: #c4b5fd;
+    --som-code-type: #7dd3fc;
+    --som-code-string: #86efac;
+    --som-code-number: #fdba74;
+    --som-code-meta: #f9a8d4;
+    --som-code-title: #67e8f9;
     color-scheme: dark;
   }
 }
@@ -55,4 +70,30 @@ body {
    scrollbar after the flyout closes). Give the attribute back its meaning inside Blockly. */
 .injectionDiv svg[display='none'] {
   display: none;
+}
+
+/* Syntax colours for the code view; highlight.js emits `hljs-*` spans. */
+.code-view .hljs-comment {
+  color: var(--som-code-comment);
+  font-style: italic;
+}
+.code-view .hljs-keyword {
+  color: var(--som-code-keyword);
+}
+.code-view .hljs-type,
+.code-view .hljs-built_in {
+  color: var(--som-code-type);
+}
+.code-view .hljs-string {
+  color: var(--som-code-string);
+}
+.code-view .hljs-number,
+.code-view .hljs-literal {
+  color: var(--som-code-number);
+}
+.code-view .hljs-meta {
+  color: var(--som-code-meta);
+}
+.code-view .hljs-title {
+  color: var(--som-code-title);
 }
