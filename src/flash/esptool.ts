@@ -1,6 +1,6 @@
 import type { BoardDefinition, Chip } from '../boards/types';
 import type { CompileResult, FlashImage } from '../compile/types';
-import type { Transport } from '../transport/types';
+import type { SerialSignals, Transport } from '../transport/types';
 import {
   errorText,
   FlashError,
@@ -170,6 +170,37 @@ function lineTerminal(onLog: (line: string) => void) {
   };
 }
 
+interface SignalPort {
+  setSignals(signals: SerialSignals): Promise<void>;
+}
+
+/** RTS high this long resets the chip (esptool.py HardReset: setRTS(True); sleep(0.1)). */
+export const RESET_PULSE_MS = 100;
+
+/**
+ * Resets the chip out of the flasher stub so the new program runs, on the raw port we still
+ * hold: DTR low (GPIO9/IO0 high: normal boot), RTS high (EN/CHIP_PU low), 100 ms, RTS low.
+ *
+ * Why not esptool-js alone: 0.7's `HardReset.reset()` only does `sleep(100); setRTS(false)`,
+ * relying on RTS still being high from the connect sequence. On the C3's native
+ * USB-Serial/JTAG, `UsbJtagSerialReset` ends with RTS and DTR low, so "Hard resetting via RTS
+ * pin..." changes nothing and the chip stays in the stub until the student presses RESET
+ * (seen on a real SuperMini). esptool.py's HardReset asserts RTS first; we do the same, for
+ * every esp chip (on classic auto-reset circuits it is the same EN pulse). The C3 then
+ * re-enumerates; the transport store finds it again (store.ts `reconnect`).
+ */
+export async function resetIntoApp(port: SignalPort, onLog: (line: string) => void) {
+  try {
+    await port.setSignals({ dataTerminalReady: false, requestToSend: true });
+    await new Promise((resolve) => setTimeout(resolve, RESET_PULSE_MS));
+    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+    onLog('reset → running your program');
+  } catch (error) {
+    // The chip may already have reset and left the bus; the program runs either way.
+    onLog(`reset: ${errorText(error)}`);
+  }
+}
+
 type EspModule = typeof import('esptool-js');
 type EspTransport = InstanceType<EspModule['Transport']>;
 type EspLoader = InstanceType<EspModule['ESPLoader']>;
@@ -307,6 +338,7 @@ export const esptoolFlasher: Flasher = {
       phase = 'reset';
       hooks.onProgress({ phase, percent: 100 });
       await loader.after('hard_reset');
+      await resetIntoApp(port as SignalPort, hooks.onLog);
       hooks.onProgress({ phase: 'done', percent: 100 });
     } catch (error) {
       throw phase === 'connect' ? connectError(esp, error) : writeError(error);

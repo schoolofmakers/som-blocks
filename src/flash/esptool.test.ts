@@ -207,7 +207,16 @@ describe('esptoolFlasher.flash', () => {
   });
 
   function run(result = c3Result(), board: BoardDefinition = esp32c3SuperMini) {
-    const transport = fakeTransport();
+    // The raw port: records the DTR/RTS sequence (with esptool-js's after() in between).
+    const signals: string[] = [];
+    const transport = fakeTransport({
+      setSignals: async (s: { dataTerminalReady?: boolean; requestToSend?: boolean }) => {
+        signals.push(`dtr=${String(s.dataTerminalReady)} rts=${String(s.requestToSend)}`);
+      },
+    });
+    h.after.mockImplementation(async () => {
+      signals.push('esptool after()');
+    });
     const progress: FlashProgress[] = [];
     const log: string[] = [];
     const controller = new AbortController();
@@ -216,8 +225,19 @@ describe('esptoolFlasher.flash', () => {
       onLog: (line) => log.push(line),
       signal: controller.signal,
     });
-    return { promise, transport, progress, log, controller };
+    return { promise, transport, progress, log, controller, signals };
   }
+
+  it('resets into the new program itself: RTS high 100 ms with DTR low, then RTS low', async () => {
+    const { promise, log, signals } = run();
+    const started = performance.now();
+    await promise;
+    // Regression (real C3 SuperMini): esptool-js 0.7's HardReset only drops RTS, a no-op
+    // after UsbJtagSerialReset, so the app waited for a manual RESET.
+    expect(signals).toEqual(['esptool after()', 'dtr=false rts=true', 'dtr=false rts=false']);
+    expect(performance.now() - started).toBeGreaterThanOrEqual(95);
+    expect(log).toContain('reset → running your program');
+  });
 
   it('closes our transport first, writes the remapped images, hard-resets and lets go', async () => {
     const { promise, transport, progress, log } = run();

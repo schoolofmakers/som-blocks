@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   FakeSerialPort,
   fakeSerial,
@@ -6,9 +6,10 @@ import {
   installSerial,
   type FakeSerial,
 } from '../test/fake-serial';
-import { DEFAULT_BAUD_RATE, useTransportStore } from './store';
+import { DEFAULT_BAUD_RATE, reconnectTiming, useTransportStore } from './store';
 
 const initial = useTransportStore.getState();
+const defaultTiming = { ...reconnectTiming };
 
 describe('transport store', () => {
   let port: FakeSerialPort;
@@ -16,6 +17,8 @@ describe('transport store', () => {
   let uninstall: () => void;
 
   beforeEach(() => {
+    // Short reconnect window: these tests run the full search, just faster.
+    Object.assign(reconnectTiming, { windowMs: 80, pollMs: 5 });
     useTransportStore.setState(initial, true);
     port = new FakeSerialPort({ usbVendorId: 0x1a86, usbProductId: 0x7523 });
     serial = fakeSerial(port);
@@ -25,6 +28,7 @@ describe('transport store', () => {
   afterEach(async () => {
     await useTransportStore.getState().disconnect();
     uninstall();
+    Object.assign(reconnectTiming, defaultTiming);
   });
 
   it('connects: connecting → connected with a friendly port label', async () => {
@@ -87,16 +91,60 @@ describe('transport store', () => {
     expect(useTransportStore.getState().portLabel).toBe('ESP32-C3 SuperMini · 303a:1001');
   });
 
-  it('an unplug turns connected into an explicit disconnected error', async () => {
+  it('an unplug looks for the board again, then gives up as disconnected', async () => {
     await useTransportStore.getState().connect('uno');
     port.unplug();
     await flush();
     expect(useTransportStore.getState()).toMatchObject({
-      status: 'error',
+      status: 'connecting',
+      reconnecting: true,
       error: { key: 'UI_CONNECT_ERROR_DISCONNECTED' },
       transport: null,
       portLabel: null,
     });
+    await vi.waitFor(() => expect(useTransportStore.getState().status).toBe('disconnected'));
+    expect(useTransportStore.getState()).toMatchObject({
+      reconnecting: false,
+      error: { key: 'UI_CONNECT_ERROR_DISCONNECTED' },
+      transport: null,
+    });
+    expect(serial.requestPort).toHaveBeenCalledTimes(1); // never the chooser again
+  });
+
+  it('a re-enumerated board (new port, same ids) is reopened without the chooser', async () => {
+    const c3 = { usbVendorId: 0x303a, usbProductId: 0x1001 };
+    const first = new FakeSerialPort(c3);
+    await useTransportStore.getState().connect('esp32c3-supermini', { port: first });
+    await useTransportStore.getState().reopen(9600);
+    const other = new FakeSerialPort({ usbVendorId: 0x1a86, usbProductId: 0x7523 });
+    const back = new FakeSerialPort(c3);
+    // The reset: the old port disappears; a moment later a new one with the same ids appears.
+    const ports: FakeSerialPort[] = [];
+    serial.getPorts.mockImplementation(async () => ports);
+    first.unplug();
+    await flush();
+    expect(useTransportStore.getState().reconnecting).toBe(true);
+    ports.push(other, back);
+    await vi.waitFor(() => expect(useTransportStore.getState().status).toBe('connected'));
+    const state = useTransportStore.getState();
+    expect(state.transport?.nativePort).toBe(back);
+    expect(state).toMatchObject({ reconnecting: false, error: null, baudRate: 9600 });
+    expect(state.portLabel).toBe('ESP32-C3 SuperMini · 303a:1001');
+    expect(back.baudRate).toBe(9600);
+    expect(other.baudRate).toBeUndefined();
+    expect(serial.requestPort).not.toHaveBeenCalled();
+  });
+
+  it('disconnect() during the search stops it', async () => {
+    await useTransportStore.getState().connect('uno');
+    const back = new FakeSerialPort({ usbVendorId: 0x1a86, usbProductId: 0x7523 });
+    port.unplug();
+    await flush();
+    await useTransportStore.getState().disconnect();
+    serial.getPorts.mockResolvedValue([back]);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(useTransportStore.getState().status).toBe('disconnected');
+    expect(back.baudRate).toBeUndefined();
   });
 
   it('disconnect closes the port and clears the state', async () => {
@@ -153,6 +201,8 @@ describe('transport store', () => {
   it('a port that will not reopen ends the connection with the error', async () => {
     await useTransportStore.getState().connect('uno');
     port.openError = new DOMException('Failed to open serial port.', 'NetworkError');
+    // reopen() looks for the board again before it gives up (getPorts lists the same port).
+    serial.getPorts.mockResolvedValue([port]);
     await useTransportStore.getState().reopen(9600);
     expect(useTransportStore.getState()).toMatchObject({
       status: 'error',

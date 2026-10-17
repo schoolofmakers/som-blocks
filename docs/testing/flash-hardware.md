@@ -57,7 +57,14 @@ Writing at 0x10000... (…%)
 Wrote … bytes (… compressed) at 0x10000 in … seconds.
 Leaving...
 Hard resetting via RTS pin...
+reset → running your program
 ```
+
+The last line is our own reset pulse (RTS high 100 ms with DTR low, then RTS low): the C3 must
+start the new program **without pressing RESET**. The C3 re-enumerates on every reset, so
+the header shows **Reconectando…** for a moment and then **Conectada** again by itself, and the
+monitor shows the new program's output. The same happens when you press RESET on the board:
+the editor reconnects by itself within a few seconds, without the port chooser.
 
 The first `Wrote … at 0x0` line is the point of this PR: the bootloader goes to **0x0**, not
 the 0x1000 the compile server sends. If it says `0x1000`, stop: the board will not boot.
@@ -84,7 +91,8 @@ avrdude-style drain working, not an error.
 | Try | How | Expected |
 |---|---|---|
 | Wrong board selected | C3 plugged in, **Arduino NANO** selected (and the reverse) | Upload stops with a red message: "La placa no respondió. Revisa que elegiste la placa correcta…" (the C3 message adds the BOOT/RESET hint). An ESP32 that is not a C3, with the C3 selected → "La placa conectada no es la que elegiste…". Nothing is written. The header still says **Conectada** (or **Sin conexión** if the port did not come back). |
-| Unplug mid-flash | Pull the USB cable while the bar is moving | "Se cortó la subida…" or "Se perdió la conexión…". The header shows **Sin conexión** (pre-rebase builds: **Conectar**) within a few seconds. Plug in, reconnect, upload again: it works. |
+| Unplug mid-flash | Pull the USB cable while the bar is moving | "Se cortó la subida…" or "Se perdió la conexión…". The header shows **Reconectando…**; plug the cable back in within ~6 s and it returns to **Conectada** by itself. Left unplugged, it ends on **Conectar** (or **Sin conexión**). Upload again: it works. |
+| RESET button (C3) | Press RESET on the SuperMini while connected | **Reconectando…**, then **Conectada** within a few seconds, no chooser; the monitor shows the boot output. (The NANO's CH340 does not re-enumerate: its header stays **Conectada**.) |
 | Cancel (C3 only) | Press **Cancelar** while "Escribiendo tu programa…" is showing | "Cancelaste la subida…". The port comes back (**Conectada**). Uploading again works. The NANO has no Cancel button (avrgirl cannot stop midway). |
 
 If the C3 never syncs ("…mantén apretado BOOT…"), do exactly what the message says: hold BOOT,

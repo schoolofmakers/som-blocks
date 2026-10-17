@@ -16,8 +16,8 @@ import { DrainingPort } from './stk500-port';
 //   verifySignature, avrgirl's read loop swallows it with console.error and the upload stalls
 //   after the third GET_SYNC, before READ_SIGN (`75 20`) is ever written. That is the hang the
 //   real NANO showed.
-// Plus the old-bootloader NANO's late first sync reply: the raw port overflows stk500's
-// READ_SIGN buffer; the DrainingPort we lend avrgirl drains it like avrdude does.
+// Plus the old-bootloader NANO's late first sync reply: on the raw port it can overflow
+// stk500's READ_SIGN buffer; through the DrainingPort we lend avrgirl the upload completes.
 
 const PROGRAM = Array.from({ length: 160 }, (_, i) => (i * 7 + 3) & 0xff); // 2 pages
 const HEX = new TextEncoder().encode(intelHex(PROGRAM));
@@ -91,14 +91,11 @@ describe('the real avrgirl bundle against a fake NANO bootloader', () => {
     expect(port.commands).not.toContain('75 20');
   }, 10_000);
 
-  it('a late first sync reply overflows READ_SIGN on the raw port…', async () => {
-    const port = new FakeStk500Port({ firstSyncDelayMs: 410 });
-    const outcome = await flash(evaluateBundle(false), port);
-    expect(outcome.result).toBe('error');
-    expect(outcome.error).toMatch(/buffer overflow 7 > 5/);
-  }, 10_000);
-
-  it('…and completes through the DrainingPort we lend avrgirl', async () => {
+  // On the raw port a late first sync reply usually fails READ_SIGN with "buffer overflow
+  // 7 > 5" (seen in the Node repro and in this harness), but whether the stale reply lands in
+  // READ_SIGN depends on timer order under load, so it is not asserted here; the drain itself
+  // is tested deterministically in stk500-port.test.ts.
+  it('a late first sync reply completes through the DrainingPort we lend avrgirl', async () => {
     const port = new FakeStk500Port({ firstSyncDelayMs: 410 });
     const drained: number[] = [];
     const wrapped = new DrainingPort(port, (count) => drained.push(count));

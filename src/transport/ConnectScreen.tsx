@@ -28,6 +28,8 @@ interface ConnectProps {
 /** Header button: status dot + label; opens the connect screen as a popover. */
 export function ConnectButton({ lang }: ConnectProps) {
   const status = useTransportStore((state) => state.status);
+  // The board reset (a native-USB C3 re-enumerates) and is being found again.
+  const reconnecting = useTransportStore((state) => state.reconnecting);
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -59,7 +61,9 @@ export function ConnectButton({ lang }: ConnectProps) {
         className="flex min-h-11 items-center gap-2 rounded-md border border-border bg-bg px-3 py-1 text-sm font-semibold text-fg"
       >
         <span aria-hidden="true" className={`size-2.5 rounded-full ${STATUS_DOT[status]}`} />
-        <span data-testid="connect-status">{t(STATUS_KEYS[status], lang)}</span>
+        <span data-testid="connect-status">
+          {t(reconnecting ? 'UI_CONNECT_STATUS_RECONNECTING' : STATUS_KEYS[status], lang)}
+        </span>
       </button>
       {open && (
         <div

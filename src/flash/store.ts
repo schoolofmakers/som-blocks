@@ -88,7 +88,9 @@ async function giveBack(transport: Transport, log: (line: string) => void): Prom
   }
   await transportStore.reopen(useSerialStore.getState().baud);
   const after = useTransportStore.getState();
-  if (after.transport !== transport && after.status === 'error') {
+  // reopen() also looks for a board that re-enumerated (a C3 after its reset) and only
+  // returns once it is connected again or the search gave up.
+  if (after.status !== 'connected') {
     log('port did not reopen after the upload; connect again');
   }
 }
