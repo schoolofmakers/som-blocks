@@ -65,6 +65,26 @@ function fileOf(bytes: Uint8Array | string, name: string): File {
 }
 
 describe('sketchName', () => {
+  it('refuses a zip with many small JSON entries (bomb by count)', async () => {
+    const files: Record<string, Uint8Array> = {};
+    for (let i = 0; i < 50; i += 1) files[`d${i}/workspace.json`] = strToU8('{}');
+    const zip = zipSync(files);
+    await expect(readProjectFile(fileOf(zip, 'many.zip'))).rejects.toMatchObject({
+      code: 'too-big',
+    });
+  });
+
+  it('refuses entries whose sizes only add up past the cap', async () => {
+    const part = strToU8(' '.repeat(2 * 1024 * 1024));
+    const zip = zipSync({
+      a: { 'workspace.json': part, 'project.json': part },
+      b: { 'workspace.json': part },
+    });
+    await expect(readProjectFile(fileOf(zip, 'sum.zip'))).rejects.toMatchObject({
+      code: 'too-big',
+    });
+  });
+
   it.each([
     ['Semáforo de Ñuñoa!', 'Semaforo_de_Nunoa'],
     ['mi proyecto (2)', 'mi_proyecto_2'],

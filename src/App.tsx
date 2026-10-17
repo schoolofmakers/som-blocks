@@ -43,14 +43,23 @@ export function App({ lang = DEFAULT_LANG }: AppProps) {
       </header>
       <ProjectNotice lang={lang} />
       <main className="flex flex-1 flex-col gap-4 p-4 lg:flex-row">
-        <BlocklyWorkspace
-          lang={lang}
-          onCodeChange={setCode}
-          boardId={boardId}
-          load={editorLoad}
-          onWorkspaceChange={saveWorkspace}
-          onLoadError={() => void workspaceLoadFailed()}
-        />
+        {/* Mounted once the first project is open, so nothing typed before IndexedDB
+            answers can be dropped or replaced by the project load. */}
+        {editorLoad ? (
+          <BlocklyWorkspace
+            lang={lang}
+            onCodeChange={setCode}
+            boardId={boardId}
+            load={editorLoad}
+            onWorkspaceChange={saveWorkspace}
+            onLoadError={() => void workspaceLoadFailed()}
+          />
+        ) : (
+          <div
+            aria-busy="true"
+            className="min-h-[60dvh] flex-1 rounded-lg border border-border bg-surface"
+          />
+        )}
         {/* Minimal read-only preview; the real code view (copy/download) is B12. */}
         <section aria-labelledby="generated-code-title" className="flex flex-col lg:w-96">
           <h2 id="generated-code-title" className="mb-2 text-sm font-semibold text-muted">

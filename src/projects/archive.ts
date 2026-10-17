@@ -139,17 +139,25 @@ function isZip(bytes: Uint8Array): boolean {
   return bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04;
 }
 
+/** Most `project.json` / `workspace.json` entries a zip may hold (ours has one of each). */
+export const MAX_ZIP_JSON_ENTRIES = 4;
+
 function readZip(bytes: Uint8Array, filename: string): ImportedProject {
   let oversized = false;
+  let accepted = 0;
+  let declaredTotal = 0;
   let entries: Record<string, Uint8Array>;
   try {
-    // Only the two JSON files are inflated, and only when their declared size is within
-    // the cap (fflate inflates into a buffer of exactly that size, so a lying header
-    // cannot grow it): a zip bomb is refused before any large allocation.
+    // Only the JSON files are inflated, only a few of them, and only while their declared
+    // sizes add up to the cap (fflate inflates into a buffer of exactly the declared size,
+    // so a lying header cannot grow it): a zip bomb — one huge entry or hundreds of small
+    // ones — is refused before any large allocation.
     entries = unzipSync(bytes, {
       filter: (file) => {
         if (!/(^|\/)(project|workspace)\.json$/.test(file.name)) return false;
-        if (file.originalSize > MAX_IMPORT_BYTES) {
+        accepted += 1;
+        declaredTotal += file.originalSize;
+        if (accepted > MAX_ZIP_JSON_ENTRIES || declaredTotal > MAX_IMPORT_BYTES) {
           oversized = true;
           return false;
         }

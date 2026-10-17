@@ -249,6 +249,37 @@ describe('projects store', () => {
     expect(state().current?.name).toBe('Mi proyecto');
   });
 
+  it('a failed save keeps the blocks when switching away and back, and retries', async () => {
+    const memory = new MemoryProjectRepo();
+    resetProjectsStore();
+    await state().init({ repo: memory });
+    const first = state().current!.id;
+    await state().create('Otro');
+    const second = state().current!.id;
+    await state().open(first);
+
+    const put = vi.spyOn(memory, 'put').mockRejectedValueOnce(new Error('QuotaExceededError'));
+    state().saveWorkspace(RAW('unsaved();'));
+    await state().open(second); // its flush fails
+    expect(state().notice).toEqual({ kind: 'save-failed' });
+    expect(state().current?.id).toBe(second);
+
+    await state().open(first);
+    expect(state().editorLoad?.state).toEqual(RAW('unsaved();'));
+    await state().flush(); // retried now that storage works again
+    expect(put).toHaveBeenLastCalledWith(expect.objectContaining({ workspace: RAW('unsaved();') }));
+    expect((await memory.get(first))?.workspace).toEqual(RAW('unsaved();'));
+  });
+
+  it('an import that cannot be stored keeps the save warning', async () => {
+    vi.spyOn(MemoryProjectRepo.prototype, 'put').mockRejectedValue(new Error('quota'));
+    resetProjectsStore();
+    await state().init({ repo: new MemoryProjectRepo() });
+    await state().importFile(new File([JSON.stringify(RAW('z();'))], 'robot.json'));
+    expect(state().current?.name).toBe('robot');
+    expect(state().notice).toEqual({ kind: 'save-failed' });
+  });
+
   it('exports a zip whose .ino is the generator output for the project board', async () => {
     useBoardStore.getState().setBoard('uno');
     state().saveWorkspace(RAW('blink();'));

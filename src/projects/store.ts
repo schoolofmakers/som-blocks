@@ -67,6 +67,12 @@ let dirty = false;
 let loadCounter = 0;
 /** Last written workspace JSON per project, so an unchanged workspace is not rewritten. */
 const lastWritten = new Map<string, string>();
+/**
+ * Projects whose last write failed (quota, storage error). Reads prefer these copies, so
+ * switching away from a project that could not be saved never loses its blocks during the
+ * session; reopening it retries the write.
+ */
+const unsaved = new Map<string, Project>();
 
 function newId(): string {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -139,10 +145,13 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
   async function write(project: Project): Promise<boolean> {
     try {
       await repo.put(project);
+      unsaved.delete(project.id);
       lastWritten.set(project.id, JSON.stringify(project.workspace));
       upsertSummary(project);
       return true;
     } catch {
+      unsaved.set(project.id, project);
+      upsertSummary(project);
       set({ notice: { kind: 'save-failed' } });
       return false;
     }
@@ -162,9 +171,24 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
     });
     storeProjectId(opened.id);
     useBoardStore.getState().setBoard(boardId);
+    if (unsaved.has(opened.id)) {
+      // Its last write failed: the next flush tries again.
+      lastWritten.delete(opened.id);
+      dirty = true;
+    }
   }
 
-  async function createProject(name: string, workspace: unknown, boardId: string) {
+  /** The stored project, preferring a copy whose write failed this session. */
+  async function readProject(id: string): Promise<Project | null | undefined> {
+    return unsaved.get(id) ?? repo.get(id);
+  }
+
+  /** Create, store and open a project; false when it could only be kept in memory. */
+  async function createProject(
+    name: string,
+    workspace: unknown,
+    boardId: string,
+  ): Promise<boolean> {
     const now = Date.now();
     const project: Project = {
       id: newId(),
@@ -175,14 +199,15 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
       updatedAt: now,
       schemaVersion: PROJECT_SCHEMA_VERSION,
     };
-    await write(project);
+    const stored = await write(project);
     activate(project);
+    return stored;
   }
 
   async function projectById(id: string): Promise<Project | null | undefined> {
     const { current } = get();
     if (current?.id === id) return current;
-    return repo.get(id);
+    return readProject(id);
   }
 
   async function openMostRecentOrCreate(): Promise<void> {
@@ -232,7 +257,7 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
       await get().flush();
       let project: Project | null | undefined;
       try {
-        project = await repo.get(id);
+        project = await readProject(id);
       } catch {
         project = null;
       }
@@ -281,6 +306,7 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
         return;
       }
       lastWritten.delete(id);
+      unsaved.delete(id);
       set({ projects: get().projects.filter((p) => p.id !== id) });
       if (wasCurrent) {
         set({ current: null, currentProjectId: null });
@@ -342,7 +368,9 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
           : unknownBoard
             ? DEFAULT_BOARD_ID
             : requested;
-      await createProject(imported.name, imported.workspace, boardId);
+      const stored = await createProject(imported.name, imported.workspace, boardId);
+      // Not stored: keep the save warning, the import only lives in this tab.
+      if (!stored) return;
       const name = get().current?.name ?? imported.name;
       set({
         notice: unknownBoard ? { kind: 'unknown-board', name, boardId: requested } : null,
@@ -381,6 +409,7 @@ export function resetProjectsStore(): void {
   initPromise = null;
   defaultName = FALLBACK_PROJECT_NAME;
   lastWritten.clear();
+  unsaved.clear();
   repo = new MemoryProjectRepo();
   useProjectsStore.setState({
     status: 'loading',
