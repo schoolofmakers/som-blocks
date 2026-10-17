@@ -1,0 +1,28 @@
+name: firmware
+
+on:
+  pull_request:
+    paths:
+      - 'firmware/**'
+      - '.github/workflows/firmware.yml'
+  push:
+    branches: [staging, main]
+    paths:
+      - 'firmware/**'
+      - '.github/workflows/firmware.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  # Host tests for the Arduino-free core (Improv framing, state machines, JSON, queue).
+  # No Arduino toolchain in CI: the full sketch is compiled on our compile server (build.sh).
+  resident-host-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Host tests (g++, ASan + UBSan)
+        run: CXX=g++ bash firmware/resident/test/run.sh
+      - name: shellcheck
+        run: shellcheck firmware/resident/build.sh firmware/resident/test/run.sh
