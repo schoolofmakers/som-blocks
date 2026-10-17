@@ -45,6 +45,7 @@ const es = {
   UI_CONNECT_STATUS_CONNECTING: 'Conectando…',
   UI_CONNECT_STATUS_CONNECTED: 'Conectada',
   UI_CONNECT_STATUS_ERROR: 'Sin conexión',
+  UI_CONNECT_STATUS_RECONNECTING: 'Reconectando…',
   UI_CONNECT_TITLE: 'Conectar tu placa',
   UI_CONNECT_CLOSE: 'Cerrar',
   UI_CONNECT_BOARD: 'Placa elegida',
@@ -133,6 +134,33 @@ const es = {
   UI_PLOT_EMPTY: 'Aún no hay números. Usa el bloque «graficar» para enviar nombre:valor.',
   UI_PLOT_CHART: 'Gráfico de los valores que envía la placa',
   UI_LANGUAGE: 'Idioma',
+  UI_UPLOAD: 'Subir',
+  UI_UPLOADING: 'Subiendo…',
+  UI_UPLOAD_CANCEL: 'Cancelar',
+  UI_UPLOAD_REASON_COMPILE: 'Primero pulsa Compilar.',
+  UI_UPLOAD_REASON_CONNECT: 'Conecta tu placa con el botón Conectar.',
+  UI_UPLOAD_PHASE_COMPILE: 'Compilando antes de subir…',
+  UI_UPLOAD_PHASE_CONNECT: 'Conectando con la placa…',
+  UI_UPLOAD_PHASE_ERASE: 'Borrando la placa…',
+  UI_UPLOAD_PHASE_WRITE: 'Escribiendo tu programa… {percent} %',
+  UI_UPLOAD_PHASE_VERIFY: 'Revisando que quedó bien…',
+  UI_UPLOAD_PHASE_RESET: 'Reiniciando la placa…',
+  UI_UPLOAD_PHASE_DONE: '¡Listo! Tu programa ya está en la placa.',
+  UI_UPLOAD_ERR_COMPILE: 'Tu programa no compiló. Lee la salida del compilador.',
+  UI_UPLOAD_ERR_NO_PORT: 'Conecta tu placa con el botón Conectar y vuelve a pulsar Subir.',
+  UI_UPLOAD_ERR_WRONG_CHIP:
+    'La placa conectada no es la que elegiste. Revisa la placa en el menú «Placa».',
+  UI_UPLOAD_ERR_SYNC_ESP:
+    'La placa no respondió. Revisa que elegiste la placa correcta. Si lo es, mantén apretado BOOT, aprieta y suelta RESET, suelta BOOT y vuelve a pulsar Subir.',
+  UI_UPLOAD_ERR_SYNC_AVR:
+    'La placa no respondió. Revisa que elegiste la placa correcta en el menú «Placa» y vuelve a intentar.',
+  UI_UPLOAD_ERR_WRITE: 'Se cortó la subida. Revisa el cable y vuelve a intentar.',
+  UI_UPLOAD_ERR_VERIFY: 'El programa no quedó bien grabado. Vuelve a pulsar Subir.',
+  UI_UPLOAD_ERR_CANCELLED:
+    'Cancelaste la subida. La placa puede quedar sin programa hasta que subas uno.',
+  UI_UPLOAD_ERR_UNSUPPORTED: 'Esta placa todavía no se puede programar desde aquí.',
+  UI_UPLOAD_ERR_TRANSPORT:
+    'Se perdió la conexión con la placa. Revisa el cable y vuelve a conectar.',
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -179,6 +207,7 @@ const en: Partial<Record<MessageKey, string>> = {
   UI_CONNECT_STATUS_CONNECTING: 'Connecting…',
   UI_CONNECT_STATUS_CONNECTED: 'Connected',
   UI_CONNECT_STATUS_ERROR: 'Not connected',
+  UI_CONNECT_STATUS_RECONNECTING: 'Reconnecting…',
   UI_CONNECT_TITLE: 'Connect your board',
   UI_CONNECT_CLOSE: 'Close',
   UI_CONNECT_BOARD: 'Selected board',
@@ -268,6 +297,33 @@ const en: Partial<Record<MessageKey, string>> = {
   UI_PLOT_EMPTY: 'No numbers yet. Use the “plot” block to send name:value.',
   UI_PLOT_CHART: 'Chart of the values the board sends',
   UI_LANGUAGE: 'Language',
+  UI_UPLOAD: 'Upload',
+  UI_UPLOADING: 'Uploading…',
+  UI_UPLOAD_CANCEL: 'Cancel',
+  UI_UPLOAD_REASON_COMPILE: 'Press Compile first.',
+  UI_UPLOAD_REASON_CONNECT: 'Connect your board with the Connect button.',
+  UI_UPLOAD_PHASE_COMPILE: 'Compiling before the upload…',
+  UI_UPLOAD_PHASE_CONNECT: 'Talking to the board…',
+  UI_UPLOAD_PHASE_ERASE: 'Erasing the board…',
+  UI_UPLOAD_PHASE_WRITE: 'Writing your program… {percent} %',
+  UI_UPLOAD_PHASE_VERIFY: 'Checking it was written right…',
+  UI_UPLOAD_PHASE_RESET: 'Restarting the board…',
+  UI_UPLOAD_PHASE_DONE: 'Done! Your program is on the board.',
+  UI_UPLOAD_ERR_COMPILE: 'Your program did not compile. Read the compiler output.',
+  UI_UPLOAD_ERR_NO_PORT: 'Connect your board with the Connect button and press Upload again.',
+  UI_UPLOAD_ERR_WRONG_CHIP:
+    'The connected board is not the one you picked. Check the board in the “Board” menu.',
+  UI_UPLOAD_ERR_SYNC_ESP:
+    'The board did not answer. Check you picked the right board. If you did, hold BOOT, press and release RESET, let go of BOOT and press Upload again.',
+  UI_UPLOAD_ERR_SYNC_AVR:
+    'The board did not answer. Check you picked the right board in the “Board” menu and try again.',
+  UI_UPLOAD_ERR_WRITE: 'The upload broke off. Check the cable and try again.',
+  UI_UPLOAD_ERR_VERIFY: 'The program was not written correctly. Press Upload again.',
+  UI_UPLOAD_ERR_CANCELLED:
+    'You cancelled the upload. The board may have no program until you upload one.',
+  UI_UPLOAD_ERR_UNSUPPORTED: 'This board cannot be programmed from here yet.',
+  UI_UPLOAD_ERR_TRANSPORT:
+    'The connection to the board was lost. Check the cable and connect again.',
 };
 
 /**

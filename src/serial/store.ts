@@ -80,8 +80,11 @@ export interface SerialState {
   setBaud: (baud: number) => Promise<void>;
   setPaused: (paused: boolean) => void;
   setAutoscroll: (autoscroll: boolean) => void;
-  /** B8's flashers set this around a flash. */
-  setMuted: (muted: boolean) => void;
+  /**
+   * B8's flashers set this around a flash. Unmuting applies a baud chosen while muted; the
+   * returned promise settles once that reopen is done.
+   */
+  setMuted: (muted: boolean) => Promise<void>;
   /** Everything buffered (also while paused) as plain text, for "download .txt". */
   exportLog: () => string;
 }
@@ -116,7 +119,10 @@ export const useSerialStore = create<SerialState>()((set, get) => {
   const applyBaud = (): Promise<void> => {
     baudChain = baudChain.then(async () => {
       const transportStore = useTransportStore.getState();
-      const { baud } = get();
+      const { baud, muted } = get();
+      // While muted a flasher owns the port: reopening now would fail and end the connection.
+      // The flash store reopens at the latest `baud` when it gives the port back (B8).
+      if (muted) return;
       if (current && transportStore.transport === current && transportStore.baudRate !== baud) {
         await transportStore.reopen(baud);
       }
@@ -212,7 +218,13 @@ export const useSerialStore = create<SerialState>()((set, get) => {
 
     setAutoscroll: (autoscroll) => set({ autoscroll }),
 
-    setMuted: (muted) => set({ muted }),
+    setMuted: (muted) => {
+      set({ muted });
+      // Muting waits for a baud reopen already in flight (later ones are deferred, see
+      // applyBaud), so a flasher never takes a port that is still being reopened. Unmuting
+      // applies a baud chosen while muted.
+      return muted ? baudChain : applyBaud();
+    },
 
     exportLog: () => {
       const lines = assembler.lines();

@@ -36,6 +36,8 @@ export interface CompileState {
   /** arduino-cli output of the last compile, success or failure, verbatim. */
   log: string;
   result: CompileResult | null;
+  /** What the last compile was asked to build; tells Upload whether `result` is current. */
+  request: CompileRequest | null;
   error: CompileError | null;
   durationMs: number | null;
   /** The server the last compile went to (errors name it, even if the setting changed). */
@@ -50,6 +52,7 @@ export const useCompileStore = create<CompileState>()((set, get) => ({
   status: 'idle',
   log: '',
   result: null,
+  request: null,
   error: null,
   durationMs: null,
   requestUrl: null,
@@ -64,7 +67,15 @@ export const useCompileStore = create<CompileState>()((set, get) => ({
   run: async (req) => {
     if (get().status === 'compiling') return;
     const requestUrl = get().serverUrl;
-    set({ status: 'compiling', log: '', result: null, error: null, durationMs: null, requestUrl });
+    set({
+      status: 'compiling',
+      log: '',
+      result: null,
+      request: req,
+      error: null,
+      durationMs: null,
+      requestUrl,
+    });
     const started = performance.now();
     try {
       const result = await compile(requestUrl, req);
