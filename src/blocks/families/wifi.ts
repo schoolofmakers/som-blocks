@@ -138,9 +138,23 @@ function addHttp(generator: ArduinoGenerator, key: string, helper: string): void
   generator.addDefinition(key, helper);
 }
 
-/** Tooltip: the block's own text, prefixed with "ESP32 only" while another board is selected. */
+/** Tooltip message key per block (literal keys, so `pnpm i18n:check` sees them used). */
+const TOOLTIP_KEYS: Record<string, string> = {
+  som_wifi_connect: 'SOM_WIFI_CONNECT_TOOLTIP',
+  som_wifi_connected: 'SOM_WIFI_CONNECTED_TOOLTIP',
+  som_wifi_ip: 'SOM_WIFI_IP_TOOLTIP',
+  som_wifi_signal: 'SOM_WIFI_SIGNAL_TOOLTIP',
+  som_wifi_http_get: 'SOM_WIFI_HTTP_GET_TOOLTIP',
+  som_wifi_http_post: 'SOM_WIFI_HTTP_POST_TOOLTIP',
+  som_wifi_disconnect: 'SOM_WIFI_DISCONNECT_TOOLTIP',
+};
+
+/**
+ * Tooltip: the block's own text, prefixed with "ESP32 only" while another board is selected.
+ * Read on hover, so it follows the board picker and the language without re-creating blocks.
+ */
 function tooltipExtension(this: Blockly.Block): void {
-  const key = `${this.type.toUpperCase()}_TOOLTIP`;
+  const key = TOOLTIP_KEYS[this.type] ?? '';
   this.setTooltip(() => {
     const text = Blockly.Msg[key] ?? '';
     return hasEsp32Wifi() ? text : `${Blockly.Msg['SOM_WIFI_ONLY_ESP32'] ?? ''} ${text}`;

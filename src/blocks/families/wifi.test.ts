@@ -11,7 +11,7 @@ import {
 import { registerBuiltInFamilies } from '../index';
 import { setCurrentChip } from '../pins';
 import { applyLocale } from '../registry';
-import { hasEsp32Wifi } from './wifi';
+import { hasEsp32Wifi, wifiFamily } from './wifi';
 
 beforeAll(() => {
   registerBuiltInFamilies();
@@ -204,6 +204,23 @@ describe('wifi on a board without WiFi (AVR)', () => {
     expect(Blockly.Tooltip.getTooltipOfObject(block)).toBe(
       `Solo ESP32. ${Blockly.Msg['SOM_WIFI_CONNECT_TOOLTIP']}`,
     );
+  });
+});
+
+describe('wifi tooltips', () => {
+  it('every wifi block has its own non-empty tooltip in both languages', () => {
+    for (const lang of ['es', 'en'] as const) {
+      applyLocale(lang);
+      for (const def of wifiFamily.blocks) {
+        const workspace = load({ type: def.type });
+        const block = workspace.getTopBlocks(false)[0]!;
+        const tooltip = Blockly.Tooltip.getTooltipOfObject(block);
+        expect(tooltip, `${lang} ${def.type}`).toBe(
+          Blockly.Msg[`${def.type.toUpperCase()}_TOOLTIP`],
+        );
+        expect(tooltip.length, `${lang} ${def.type}`).toBeGreaterThan(10);
+      }
+    }
   });
 });
 
