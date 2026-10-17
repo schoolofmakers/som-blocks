@@ -83,6 +83,13 @@ export const logicFamily: BlockFamily = {
     ],
     logic_ternary: (block, generator) => {
       const condition = generator.valueToCode(block, 'IF', Order.CONDITIONAL) || 'false';
+      // Both choices need one C++ type: with text on either side, both become Strings.
+      if (valueType(block) === 'String') {
+        const then = stringInput(block, generator, 'THEN', Order.CONDITIONAL, true) ?? 'String("")';
+        const otherwise =
+          stringInput(block, generator, 'ELSE', Order.CONDITIONAL, true) ?? 'String("")';
+        return [`${condition} ? ${then} : ${otherwise}`, Order.CONDITIONAL];
+      }
       const then = generator.valueToCode(block, 'THEN', Order.CONDITIONAL) || '0';
       const otherwise = generator.valueToCode(block, 'ELSE', Order.CONDITIONAL) || '0';
       return [`${condition} ? ${then} : ${otherwise}`, Order.CONDITIONAL];

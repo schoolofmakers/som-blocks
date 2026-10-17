@@ -4,6 +4,7 @@ import {
   cppString,
   isArrayType,
   itemInputs,
+  listVariableSize,
   stringInput,
   variableRef,
   valueType,
@@ -20,8 +21,14 @@ const EMPTY = 'String("")';
 
 /** Length of a text, or of a list (text_length and text_isEmpty also accept lists). */
 const lengthOf = (...[block, generator]: Parameters<BlockGenerator>): [string, Order] => {
-  const type = valueType(block.getInputTargetBlock('VALUE'));
-  if (isArrayType(type)) return [String(type.size), Order.ATOMIC];
+  const child = block.getInputTargetBlock('VALUE');
+  const size = listVariableSize(child);
+  if (size !== null) return [String(size), Order.ATOMIC];
+  if (isArrayType(valueType(child))) {
+    // An inline list: generating it flags it as unsupported (lists.ts); never drop its items.
+    generator.valueToCode(block, 'VALUE', Order.NONE);
+    return ['0', Order.ATOMIC];
+  }
   const text = stringInput(block, generator, 'VALUE', Order.POSTFIX, true) ?? EMPTY;
   return [`${text}.length()`, Order.POSTFIX];
 };

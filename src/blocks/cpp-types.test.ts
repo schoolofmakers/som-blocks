@@ -222,7 +222,7 @@ describe('generated identifiers', () => {
       ],
       [{ name: 'count', id: 'count' }],
     );
-    expect(code).toContain('for (int count2 = 0; count2 < 2; count2++) {');
+    expect(code).toContain('for (long count2 = 0; count2 < 2; count2++) {');
     expect(code).toContain('    count = count;');
   });
 
@@ -242,5 +242,112 @@ describe('generated identifiers', () => {
     expect(code.match(/double x = 0;/g)).toHaveLength(1);
     expect(code).toContain('void f(double x) {\n  x = 2;\n}');
     expect(code).toContain('void loop() {\n  x = 1;\n}');
+  });
+});
+
+// Regressions from the PR #22 review: each case used to generate wrong or non-compiling C++.
+describe('generator edge cases', () => {
+  const generateCode = (blocks: BlockState[]) =>
+    arduinoGenerator.workspaceToCode(
+      load(blocks, [
+        { name: 'n', id: 'n' },
+        { name: 'l', id: 'l' },
+      ]),
+    );
+  const list = (...items: BlockState[]): BlockState => ({
+    type: 'lists_create_with',
+    extraState: { itemCount: items.length },
+    inputs: Object.fromEntries(items.map((item, i) => [`ADD${i}`, { block: item }])),
+  });
+
+  it('ignores disabled assignments when typing a variable', () => {
+    const code = generateCode([
+      { ...set('n', list(num(1), num(2))), enabled: false },
+      set('n', num(3)),
+    ]);
+    expect(code).toContain('double n = 0;');
+    expect(code).toContain('  n = 3;');
+  });
+
+  it('lets `set item` to text make the list a String array', () => {
+    const code = generateCode([
+      set('l', list(num(1), num(2))),
+      {
+        type: 'lists_setIndex',
+        fields: { MODE: 'SET', WHERE: 'FIRST' },
+        inputs: { LIST: { block: get('l') }, TO: { block: text('hola') } },
+      },
+    ]);
+    expect(code).toContain('String l[2];');
+    expect(code).toContain('  l[0] = String(1);');
+    expect(code).toContain('  l[0] = "hola";');
+  });
+
+  it('refuses lists of different lengths for one variable instead of keeping stale items', () => {
+    const code = generateCode([set('l', list(num(1), num(2), num(3))), set('l', list(num(4)))]);
+    expect(code).toMatch(/#error ".*mismo número de elementos/);
+  });
+
+  it('flags an inline list in `length of` instead of dropping its items', () => {
+    const code = generateCode([
+      set('n', { type: 'lists_length', inputs: { VALUE: { block: list(num(1)) } } }),
+    ]);
+    expect(code).toContain('#error');
+  });
+
+  it('makes both ternary choices Strings when either is text', () => {
+    const code = generateCode([
+      set('l', text('a')),
+      set('n', {
+        type: 'logic_ternary',
+        inputs: { IF: { block: bool(true) }, THEN: { block: get('l') }, ELSE: { block: num(2) } },
+      }),
+    ]);
+    expect(code).toContain('n = true ? l : String(2);');
+  });
+
+  it('reads a computed repeat count once and counts with a long', () => {
+    const code = generateCode([
+      { type: 'controls_repeat_ext', inputs: { TIMES: { block: get('n') } } },
+    ]);
+    expect(code).toContain(
+      'double count_times = n;\n  for (long count = 0; count < count_times; count++) {',
+    );
+  });
+
+  it('keeps integer-literal arithmetic in double (no 16-bit overflow)', () => {
+    const code = generateCode([
+      set('n', {
+        type: 'math_arithmetic',
+        fields: { OP: 'MULTIPLY' },
+        inputs: { A: { block: num(300) }, B: { block: num(300) } },
+      }),
+    ]);
+    expect(code).toContain('n = 300.0 * 300;');
+  });
+
+  it('orders random bounds: literal ones now, computed ones in a helper', () => {
+    const random = (from: BlockState, to: BlockState): BlockState => ({
+      type: 'math_random_int',
+      inputs: { FROM: { block: from }, TO: { block: to } },
+    });
+    const code = generateCode([
+      set('n', random(num(6), num(1))),
+      set('l', random(get('n'), num(1))),
+    ]);
+    expect(code).toContain('n = random(1, 7);');
+    expect(code).toContain('long randomInt(double a, double b) {');
+    expect(code).toContain('l = randomInt(n, 1);');
+  });
+
+  it('treats only a remainder of ±1 as odd', () => {
+    const code = generateCode([
+      set('n', {
+        type: 'math_number_property',
+        fields: { PROPERTY: 'ODD' },
+        inputs: { NUMBER_TO_CHECK: { block: num(2.5) } },
+      }),
+    ]);
+    expect(code).toContain('fabs(fmod(2.5, 2)) == 1');
   });
 });

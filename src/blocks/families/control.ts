@@ -26,9 +26,21 @@ export const controlFamily: BlockFamily = {
     controls_repeat_ext: (block, generator) => {
       // Name the counter before generating the body, so nesting reads outer → inner.
       const count = generator.nameDB_!.getDistinctName('count', Blockly.Names.NameType.VARIABLE);
-      const times = generator.valueToCode(block, 'TIMES', Order.RELATIONAL) || '0';
+      const times = generator.valueToCode(block, 'TIMES', Order.ASSIGNMENT) || '0';
       const branch = generator.statementToCode(block, 'DO');
-      return `for (int ${count} = 0; ${count} < ${times}; ${count}++) {\n${branch}}\n`;
+      // `long`: an AVR `int` stops at 32767. A computed count is read once, before the loop,
+      // so changing it (or a function call in it) inside the loop doesn't change the repeats.
+      if (NUMBER_LITERAL.test(times)) {
+        return `for (long ${count} = 0; ${count} < ${times}; ${count}++) {\n${branch}}\n`;
+      }
+      const limit = generator.nameDB_!.getDistinctName(
+        `${count}_times`,
+        Blockly.Names.NameType.VARIABLE,
+      );
+      return (
+        `double ${limit} = ${times};\n` +
+        `for (long ${count} = 0; ${count} < ${limit}; ${count}++) {\n${branch}}\n`
+      );
     },
     controls_whileUntil: (block, generator) => {
       const until = block.getFieldValue('MODE') === 'UNTIL';

@@ -1,6 +1,8 @@
 import 'blockly/blocks';
+import * as Blockly from 'blockly/core';
 import { Order } from '../arduino-generator';
 import {
+  compileError,
   isArrayType,
   itemInputs,
   scalarOf,
@@ -38,7 +40,14 @@ export const variablesFamily: BlockFamily = {
       // element. Any other value for a list variable falls through to `name = value;`, which
       // arduino-cli rejects ("invalid array assignment") — unsupported, see lists.ts.
       if (isArrayType(type) && value?.type === 'lists_create_with') {
-        return itemInputs(value)
+        const items = itemInputs(value);
+        // A fixed-size array can't shrink or grow: every list given to one variable must have
+        // the same, non-zero length, or stale items would silently stay behind.
+        if (items.length === 0 || items.length !== type.size) {
+          compileError(generator, block.id, Blockly.Msg['SOM_VARIABLES_LIST_SIZE'] ?? '');
+          return '';
+        }
+        return items
           .map(
             (name, index) =>
               `${variable}[${index}] = ${typedInput(value, generator, name, type.element, Order.ASSIGNMENT)};\n`,
@@ -56,7 +65,15 @@ export const variablesFamily: BlockFamily = {
     contents: [],
   },
   messages: {
-    es: { SOM_VARIABLES_CATEGORY: 'Variables' },
-    en: { SOM_VARIABLES_CATEGORY: 'Variables' },
+    es: {
+      SOM_VARIABLES_CATEGORY: 'Variables',
+      SOM_VARIABLES_LIST_SIZE:
+        'Una variable con lista debe recibir siempre listas con el mismo número de elementos (al menos uno).',
+    },
+    en: {
+      SOM_VARIABLES_CATEGORY: 'Variables',
+      SOM_VARIABLES_LIST_SIZE:
+        'A list variable must always get lists with the same number of items (at least one).',
+    },
   },
 };

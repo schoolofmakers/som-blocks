@@ -2,8 +2,9 @@ import 'blockly/blocks';
 import * as Blockly from 'blockly/core';
 import { Order, type ArduinoGenerator } from '../arduino-generator';
 import {
-  cppString,
+  compileError,
   isArrayType,
+  listVariableSize,
   stringInput,
   typedInput,
   valueType,
@@ -13,13 +14,14 @@ import type { BlockFamily, BlockGenerator } from '../types';
 
 // `lists` family (full toolbox only): a deliberately small subset of Blockly's list blocks
 // on fixed-size C arrays. A variable set to `create list with` becomes `double name[N];` in
-// the definitions (N = the longest list assigned to it, element type by the heuristic in
-// cpp-types.ts) and the set fills it element by element.
+// the definitions (element type by the heuristic in cpp-types.ts, including the values of
+// `set item`) and the set fills it element by element.
 //
 // Supported: create list with (assigned to a variable), length of, get / set item #, # from
 // end, first, last, random — on a list variable. Unsupported, with an `#error` that
 // arduino-cli reports verbatim: remove / insert, any list block on something that isn't a list
-// variable, an empty list. Not checked: indexes past the end (C arrays don't grow), and
+// variable (an inline list too), an empty list, and giving one variable lists of different
+// lengths (variables.ts). Not checked: indexes past the end (C arrays don't grow), and
 // lists of lists. Lists can't be parameters or return values. controls_forEach is not offered.
 //
 // Pattern: carlosperate/ardublockly blockly/generators/arduino/lists.js leaves every list
@@ -28,7 +30,7 @@ import type { BlockFamily, BlockGenerator } from '../types';
 /** Make the sketch fail to compile with a message the student can read in the compile log. */
 function unsupported(generator: ArduinoGenerator, block: Blockly.Block, what: string): void {
   const message = (Blockly.Msg['SOM_LISTS_UNSUPPORTED'] ?? '%1').replace('%1', what);
-  generator.addDefinition(`unsupported:${block.id}`, `#error ${cppString(message)}`);
+  compileError(generator, block.id, message);
 }
 
 /** The list variable plugged into `input`, or `null` (after flagging it) for anything else. */
@@ -94,8 +96,13 @@ export const listsFamily: BlockFamily = {
       return ['0', Order.ATOMIC];
     },
     lists_length: (block, generator) => {
-      const type = valueType(block.getInputTargetBlock('VALUE'));
-      if (isArrayType(type)) return [String(type.size), Order.ATOMIC];
+      const size = listVariableSize(block.getInputTargetBlock('VALUE'));
+      if (size !== null) return [String(size), Order.ATOMIC];
+      if (isArrayType(valueType(block.getInputTargetBlock('VALUE')))) {
+        // An inline list: generating it flags it (its items would otherwise never run).
+        generator.valueToCode(block, 'VALUE', Order.NONE);
+        return ['0', Order.ATOMIC];
+      }
       // The block also takes text.
       const text = stringInput(block, generator, 'VALUE', Order.POSTFIX, true);
       return text ? [`${text}.length()`, Order.POSTFIX] : ['0', Order.ATOMIC];

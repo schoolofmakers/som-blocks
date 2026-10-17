@@ -31,6 +31,7 @@ describe('golden: workspace JSON → .ino', () => {
         'lists-array',
         'lists-unsupported',
         'functions-prototypes',
+        'edge-cases',
       ]),
     );
   });

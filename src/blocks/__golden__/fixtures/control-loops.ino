@@ -5,8 +5,8 @@ void setup() {
 }
 
 void loop() {
-  for (int count2 = 0; count2 < 3; count2++) {
-    for (int count3 = 0; count3 < 2; count3++) {
+  for (long count2 = 0; count2 < 3; count2++) {
+    for (long count3 = 0; count3 < 2; count3++) {
       delay(100);
     }
   }

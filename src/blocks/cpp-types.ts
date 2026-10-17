@@ -132,6 +132,28 @@ export function variableType(
   return assignedType(workspace, varId, scope, seen) ?? 'double';
 }
 
+/** Declared size of a list variable read by `block`, or `null` if it isn't one. */
+export function listVariableSize(block: Block | null): number | null {
+  if (block?.type !== 'variables_get') return null;
+  const type = valueType(block);
+  return isArrayType(type) ? type.size : null;
+}
+
+/** Blocks that generate code: disabled blocks and anything inside them are skipped. */
+function activeBlocks(workspace: Workspace): Block[] {
+  return workspace
+    .getAllBlocks(false)
+    .filter((block) => block.isEnabled() && !block.getInheritedDisabled());
+}
+
+/**
+ * Make the sketch fail to compile with `message`, which arduino-cli shows verbatim in the
+ * compile log — for block shapes C++ can't express. One entry per `key` (a block id).
+ */
+export function compileError(generator: ArduinoGenerator, key: string, message: string): void {
+  generator.addDefinition(`unsupported:${key}`, `#error ${cppString(message)}`);
+}
+
 function assignedType(
   workspace: Workspace,
   varId: string,
@@ -142,7 +164,21 @@ function assignedType(
   if (seen.has(key)) return null;
   const inner = new Set(seen).add(key);
   const assigned: (CppType | null)[] = [];
-  for (const block of workspace.getAllBlocks(false)) {
+  const blocks = activeBlocks(workspace);
+  for (const block of blocks) {
+    // `set item` on this list variable: its value joins the element type (size 0 = no size).
+    if (block.type === 'lists_setIndex') {
+      const list = inputBlock(block, 'LIST');
+      if (
+        list?.type === 'variables_get' &&
+        list.getFieldValue('VAR') === varId &&
+        variableScope(list, varId) === scope
+      ) {
+        const element = scalarOrNull(valueType(inputBlock(block, 'TO'), inner));
+        if (element) assigned.push({ element, size: 0 });
+      }
+      continue;
+    }
     if (block.getFieldValue('VAR') !== varId || variableScope(block, varId) !== scope) continue;
     switch (block.type) {
       case 'variables_set':
@@ -160,7 +196,7 @@ function assignedType(
   if (scope) {
     const index = scope.getVarModels().findIndex((model) => model.getId() === varId);
     const name = scope.getFieldValue('NAME') as string;
-    for (const call of workspace.getAllBlocks(false)) {
+    for (const call of blocks) {
       const isCall =
         call.type === 'procedures_callnoreturn' || call.type === 'procedures_callreturn';
       if (isCall && Blockly.Names.equals(call.getFieldValue('NAME') as string, name)) {
@@ -184,7 +220,12 @@ export function functionReturnType(
   const inner = new Set(seen).add(key);
   const returned: (CppType | null)[] = [valueType(inputBlock(def, 'RETURN'), inner)];
   for (const block of def.getDescendants(false)) {
-    if (block.type === 'procedures_ifreturn' && enclosingFunction(block) === def) {
+    if (
+      block.type === 'procedures_ifreturn' &&
+      enclosingFunction(block) === def &&
+      block.isEnabled() &&
+      !block.getInheritedDisabled()
+    ) {
       returned.push(valueType(inputBlock(block, 'VALUE'), inner));
     }
   }

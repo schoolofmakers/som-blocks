@@ -6,7 +6,7 @@ bool isPrime(double n) {
   if (n < 2 || n != floor(n)) return false;
   if (n == 2 || n == 3) return true;
   if (fmod(n, 2) == 0 || fmod(n, 3) == 0) return false;
-  for (long i = 6; (i - 1) * (i - 1) <= n; i += 6) {
+  for (long i = 6; (double)(i - 1) * (i - 1) <= n; i += 6) {
     if (fmod(n, i - 1) == 0 || fmod(n, i + 1) == 0) return false;
   }
   return true;

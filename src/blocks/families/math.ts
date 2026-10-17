@@ -50,25 +50,44 @@ const single: BlockGenerator = (block, generator) => {
   return [toCode(x), op.startsWith('A') && op !== 'ABS' ? Order.MULTIPLICATIVE : Order.POSTFIX];
 };
 
-/** Name of the shared `isPrime` helper for this run, distinct from the student's names. */
-function providePrimeHelper(generator: Parameters<BlockGenerator>[1]): string {
-  const name = generator.nameDB_!.getName('isPrime', Blockly.Names.NameType.DEVELOPER_VARIABLE);
-  generator.addDefinition(
-    'math:isPrime',
-    [
-      `bool ${name}(double n) {`,
-      '  if (n < 2 || n != floor(n)) return false;',
-      '  if (n == 2 || n == 3) return true;',
-      '  if (fmod(n, 2) == 0 || fmod(n, 3) == 0) return false;',
-      '  for (long i = 6; (i - 1) * (i - 1) <= n; i += 6) {',
-      '    if (fmod(n, i - 1) == 0 || fmod(n, i + 1) == 0) return false;',
-      '  }',
-      '  return true;',
-      '}',
-    ].join('\n'),
-  );
+/**
+ * Add a helper function to the definitions once per run and return its name, which nameDB_
+ * keeps distinct from the student's names. `lines` gets that name.
+ */
+function provideHelper(
+  generator: Parameters<BlockGenerator>[1],
+  desired: string,
+  lines: (name: string) => string[],
+): string {
+  const name = generator.nameDB_!.getName(desired, Blockly.Names.NameType.DEVELOPER_VARIABLE);
+  generator.addDefinition(`math:${desired}`, lines(name).join('\n'));
   return name;
 }
+
+const isPrimeHelper = (name: string) => [
+  `bool ${name}(double n) {`,
+  '  if (n < 2 || n != floor(n)) return false;',
+  '  if (n == 2 || n == 3) return true;',
+  '  if (fmod(n, 2) == 0 || fmod(n, 3) == 0) return false;',
+  // Square in double: `long * long` overflows near the top of a 32-bit long.
+  '  for (long i = 6; (double)(i - 1) * (i - 1) <= n; i += 6) {',
+  '    if (fmod(n, i - 1) == 0 || fmod(n, i + 1) == 0) return false;',
+  '  }',
+  '  return true;',
+  '}',
+];
+
+/** Blockly's random integer: both bounds included, in either order, each evaluated once. */
+const randomIntHelper = (name: string) => [
+  `long ${name}(double a, double b) {`,
+  '  if (a > b) {',
+  '    double t = a;',
+  '    a = b;',
+  '    b = t;',
+  '  }',
+  '  return random((long)a, (long)b + 1);',
+  '}',
+];
 
 export const mathFamily: BlockFamily = {
   id: 'math',
@@ -118,10 +137,16 @@ export const mathFamily: BlockFamily = {
         return [`pow(${a}, ${b})`, Order.POSTFIX];
       }
       const [operator, order] = ARITHMETIC[op] ?? ARITHMETIC.ADD!;
-      const a = generator.valueToCode(block, 'A', order) || '0';
+      let a = generator.valueToCode(block, 'A', order) || '0';
       let b = generator.valueToCode(block, 'B', order) || '0';
-      // Blockly divides like a calculator (7 / 2 = 3.5); C++ would truncate two integers.
-      if (op === 'DIVIDE') b = INTEGER_LITERAL.test(b) ? `${b}.0` : `(double)${b}`;
+      if (op === 'DIVIDE') {
+        // Blockly divides like a calculator (7 / 2 = 3.5); C++ would truncate two integers.
+        b = INTEGER_LITERAL.test(b) ? `${b}.0` : `(double)${b}`;
+      } else if (INTEGER_LITERAL.test(a) && INTEGER_LITERAL.test(b)) {
+        // Two integer literals are C++ `int`s: 300 * 300 overflows AVR's 16-bit int. One
+        // double operand makes the whole calculation double, like every number variable.
+        a = `${a}.0`;
+      }
       return [`${a}${operator}${b}`, order];
     },
     math_single: single,
@@ -130,7 +155,7 @@ export const mathFamily: BlockFamily = {
       const property = block.getFieldValue('PROPERTY') as string;
       if (property === 'PRIME') {
         const n = generator.valueToCode(block, 'NUMBER_TO_CHECK', Order.NONE) || '0';
-        return [`${providePrimeHelper(generator)}(${n})`, Order.POSTFIX];
+        return [`${provideHelper(generator, 'isPrime', isPrimeHelper)}(${n})`, Order.POSTFIX];
       }
       if (property === 'POSITIVE' || property === 'NEGATIVE') {
         const n = generator.valueToCode(block, 'NUMBER_TO_CHECK', Order.RELATIONAL) || '0';
@@ -143,8 +168,9 @@ export const mathFamily: BlockFamily = {
           : property === 'WHOLE'
             ? '1'
             : '2';
-      const comparison = property === 'ODD' ? '!=' : '==';
-      return [`fmod(${n}, ${divisor}) ${comparison} 0`, Order.EQUALITY];
+      // Odd means a remainder of ±1, so a fraction like 2.5 is neither even nor odd.
+      if (property === 'ODD') return [`fabs(fmod(${n}, 2)) == 1`, Order.EQUALITY];
+      return [`fmod(${n}, ${divisor}) == 0`, Order.EQUALITY];
     },
     math_round: (block, generator) => {
       const fn = { ROUND: 'round', ROUNDUP: 'ceil', ROUNDDOWN: 'floor' }[
@@ -166,10 +192,17 @@ export const mathFamily: BlockFamily = {
     },
     math_random_int: (block, generator) => {
       const from = generator.valueToCode(block, 'FROM', Order.NONE) || '0';
-      const to = generator.valueToCode(block, 'TO', Order.ADDITIVE) || '0';
-      // Blockly includes the upper bound; Arduino's random(min, max) excludes it.
-      const max = INTEGER_LITERAL.test(to) ? String(Number(to) + 1) : `${to} + 1`;
-      return [`random(${from}, ${max})`, Order.POSTFIX];
+      const to = generator.valueToCode(block, 'TO', Order.NONE) || '0';
+      if (INTEGER_LITERAL.test(from) && INTEGER_LITERAL.test(to)) {
+        // Known bounds: order them now. Blockly includes the upper bound; Arduino's
+        // random(min, max) excludes it.
+        const [low, high] = [Number(from), Number(to)].sort((x, y) => x - y);
+        return [`random(${low}, ${high! + 1})`, Order.POSTFIX];
+      }
+      return [
+        `${provideHelper(generator, 'randomInt', randomIntHelper)}(${from}, ${to})`,
+        Order.POSTFIX,
+      ];
     },
     math_random_float: () => ['random(1000000) / 1000000.0', Order.MULTIPLICATIVE],
     math_change: (block, generator) => {
