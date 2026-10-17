@@ -1,0 +1,51 @@
+name: relay
+
+on:
+  pull_request:
+    paths:
+      - 'server/relay/**'
+      - '.github/workflows/relay.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm version comes from the `packageManager` field in server/relay/package.json.
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: server/relay/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: server/relay/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm --dir server/relay install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --dir server/relay typecheck
+
+      - name: Lint
+        run: pnpm --dir server/relay lint
+
+      - name: Format
+        run: pnpm --dir server/relay format:check
+
+      - name: Test
+        run: pnpm --dir server/relay test
+
+      - name: Build
+        run: pnpm --dir server/relay build
+
+      - name: hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: server/relay/Dockerfile
