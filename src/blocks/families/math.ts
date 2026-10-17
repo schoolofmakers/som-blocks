@@ -1,7 +1,7 @@
 import 'blockly/blocks';
 import * as Blockly from 'blockly/core';
 import { Order } from '../arduino-generator';
-import { variableRef } from '../cpp-types';
+import { variableRef, variableScope, variableType } from '../cpp-types';
 import type { BlockFamily, BlockGenerator } from '../types';
 
 // `math` family: Blockly's core math blocks with Arduino C++ generators, plus our own
@@ -74,6 +74,17 @@ const isPrimeHelper = (name: string) => [
   '    if (fmod(n, i - 1) == 0 || fmod(n, i + 1) == 0) return false;',
   '  }',
   '  return true;',
+  '}',
+];
+
+/** A number or a variable name: safe to repeat inside an Arduino macro. */
+const SIMPLE_ARGUMENT = /^-?[\w.]+$/;
+
+const constrainHelper = (name: string) => [
+  `double ${name}(double x, double low, double high) {`,
+  '  if (x < low) return low;',
+  '  if (x > high) return high;',
+  '  return x;',
   '}',
 ];
 
@@ -176,11 +187,15 @@ export const mathFamily: BlockFamily = {
       return [`fmod(${n}, ${divisor}) == 0`, Order.EQUALITY];
     },
     math_round: (block, generator) => {
-      const fn = { ROUND: 'round', ROUNDUP: 'ceil', ROUNDDOWN: 'floor' }[
-        block.getFieldValue('OP') as 'ROUND' | 'ROUNDUP' | 'ROUNDDOWN'
-      ];
+      const op = block.getFieldValue('OP') as string;
+      if (op === 'ROUND') {
+        // AVR's round() is a macro that evaluates its argument twice and returns a long;
+        // floor(x + 0.5) reads x once and rounds like Blockly (Math.round).
+        const x = generator.valueToCode(block, 'NUM', Order.ADDITIVE) || '0';
+        return [`floor(${x} + 0.5)`, Order.POSTFIX];
+      }
       const x = generator.valueToCode(block, 'NUM', Order.NONE) || '0';
-      return [`${fn ?? 'round'}(${x})`, Order.POSTFIX];
+      return [`${op === 'ROUNDUP' ? 'ceil' : 'floor'}(${x})`, Order.POSTFIX];
     },
     math_modulo: (block, generator) => {
       const a = generator.valueToCode(block, 'DIVIDEND', Order.NONE) || '0';
@@ -191,7 +206,14 @@ export const mathFamily: BlockFamily = {
       const value = generator.valueToCode(block, 'VALUE', Order.NONE) || '0';
       const low = generator.valueToCode(block, 'LOW', Order.NONE) || '0';
       const high = generator.valueToCode(block, 'HIGH', Order.NONE) || '0';
-      return [`constrain(${value}, ${low}, ${high})`, Order.POSTFIX];
+      // Arduino's constrain() is a macro that may evaluate an argument several times: fine
+      // for numbers and variables, wrong for a function call or random(). Anything else goes
+      // through a helper that reads each value once.
+      if ([value, low, high].every((arg) => SIMPLE_ARGUMENT.test(arg))) {
+        return [`constrain(${value}, ${low}, ${high})`, Order.POSTFIX];
+      }
+      const helper = provideHelper(generator, 'constrainValue', constrainHelper);
+      return [`${helper}(${value}, ${low}, ${high})`, Order.POSTFIX];
     },
     math_random_int: (block, generator) => {
       const from = generator.valueToCode(block, 'FROM', Order.NONE) || '0';
@@ -209,7 +231,13 @@ export const mathFamily: BlockFamily = {
     },
     math_random_float: () => ['random(1000000) / 1000000.0', Order.MULTIPLICATIVE],
     math_change: (block, generator) => {
-      const variable = variableRef(block, generator, block.getFieldValue('VAR') as string);
+      const varId = block.getFieldValue('VAR') as string;
+      const variable = variableRef(block, generator, varId);
+      if (variableType(block.workspace, varId, variableScope(block, varId)) === 'String') {
+        // Text elsewhere made it a String, where `+=` would append. Add as a number instead.
+        const delta = generator.valueToCode(block, 'DELTA', Order.ADDITIVE) || '0';
+        return `${variable} = String(${variable}.toDouble() + ${delta});\n`;
+      }
       const delta = generator.valueToCode(block, 'DELTA', Order.ASSIGNMENT) || '0';
       return `${variable} += ${delta};\n`;
     },

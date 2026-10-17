@@ -1,7 +1,7 @@
 import 'blockly/blocks';
 import * as Blockly from 'blockly/core';
 import { Order } from '../arduino-generator';
-import { variableRef } from '../cpp-types';
+import { compileError, variableRef, variableScope, variableType } from '../cpp-types';
 import type { BlockFamily } from '../types';
 
 // `control` family: repeat N times, while / until, count with, break / continue — Blockly's
@@ -50,7 +50,13 @@ export const controlFamily: BlockFamily = {
       return `while (${condition}) {\n${generator.statementToCode(block, 'DO')}}\n`;
     },
     controls_for: (block, generator) => {
-      const variable = variableRef(block, generator, block.getFieldValue('VAR') as string);
+      const varId = block.getFieldValue('VAR') as string;
+      const variable = variableRef(block, generator, varId);
+      // Text (or a list) elsewhere makes the variable a String / array, which can't count.
+      if (variableType(block.workspace, varId, variableScope(block, varId)) !== 'double') {
+        compileError(generator, block.id, Blockly.Msg['SOM_CONTROL_FOR_NOT_NUMBER'] ?? '');
+        return '';
+      }
       const from = generator.valueToCode(block, 'FROM', Order.ASSIGNMENT) || '0';
       const to = generator.valueToCode(block, 'TO', Order.ASSIGNMENT) || '0';
       const by = generator.valueToCode(block, 'BY', Order.NONE) || '1';
@@ -111,7 +117,15 @@ export const controlFamily: BlockFamily = {
     ],
   },
   messages: {
-    es: { SOM_CONTROL_CATEGORY: 'Control' },
-    en: { SOM_CONTROL_CATEGORY: 'Control' },
+    es: {
+      SOM_CONTROL_CATEGORY: 'Control',
+      SOM_CONTROL_FOR_NOT_NUMBER:
+        '"contar con" necesita una variable de números, pero en otra parte le diste texto o una lista.',
+    },
+    en: {
+      SOM_CONTROL_CATEGORY: 'Control',
+      SOM_CONTROL_FOR_NOT_NUMBER:
+        '"count with" needs a number variable, but somewhere else it gets text or a list.',
+    },
   },
 };

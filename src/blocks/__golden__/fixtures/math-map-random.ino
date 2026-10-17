@@ -12,6 +12,11 @@ bool isPrime(double n) {
   return true;
 }
 double x = 0;
+double constrainValue(double x, double low, double high) {
+  if (x < low) return low;
+  if (x > high) return high;
+  return x;
+}
 
 void setup() {
 }
@@ -22,6 +27,6 @@ void loop() {
   dado = random(1, 7);
   mitad = 7 / 2.0;
   if (isPrime(dado)) {
-    x = constrain(-(-1), sin(30 * DEG_TO_RAD), fmod(ceil(3.5), 2));
+    x = constrainValue(-(-1), sin(30 * DEG_TO_RAD), fmod(ceil(3.5), 2));
   }
 }

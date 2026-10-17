@@ -66,36 +66,63 @@ function inputBlock(block: Block, name: string): Block | null {
   return block.getInputTargetBlock(name);
 }
 
+/**
+ * One type query's working state. Every variable / function type is computed once per query
+ * (`memo`), so chains like `b = a`, `c = b`… stay linear instead of re-scanning the workspace
+ * for each reference. `inProgress` is the cycle guard: a type that depends on itself
+ * (`a = b`, `b = a`) contributes nothing on the way round.
+ */
+interface TypeContext {
+  memo: Map<string, CppType | null>;
+  inProgress: Set<string>;
+  blocks?: Block[];
+}
+
+function newContext(): TypeContext {
+  return { memo: new Map(), inProgress: new Set() };
+}
+
+function memoized(ctx: TypeContext, key: string, compute: () => CppType | null): CppType | null {
+  if (ctx.memo.has(key)) return ctx.memo.get(key) ?? null;
+  if (ctx.inProgress.has(key)) return null;
+  ctx.inProgress.add(key);
+  const result = compute();
+  ctx.inProgress.delete(key);
+  ctx.memo.set(key, result);
+  return result;
+}
+
 /** The type of the value `block` outputs, or `null` when nothing can be said. */
-export function valueType(
-  block: Block | null,
-  seen: ReadonlySet<string> = new Set(),
-): CppType | null {
+export function valueType(block: Block | null): CppType | null {
+  return typeOf(block, newContext());
+}
+
+function typeOf(block: Block | null, ctx: TypeContext): CppType | null {
   if (!block) return null;
   switch (block.type) {
     case 'variables_get': {
       const varId = block.getFieldValue('VAR') as string;
-      return assignedType(block.workspace, varId, variableScope(block, varId), seen);
+      return assignedType(block.workspace, varId, variableScope(block, varId), ctx);
     }
     case 'procedures_callreturn': {
-      const type = functionReturnType(block.workspace, block.getFieldValue('NAME') as string, seen);
+      const type = returnTypeOf(block.workspace, block.getFieldValue('NAME') as string, ctx);
       return type === 'void' ? null : type;
     }
     case 'lists_create_with': {
       const items = itemInputs(block);
       const element = scalarOf(
-        mergeTypes(items.map((name) => scalarOrNull(valueType(inputBlock(block, name), seen)))),
+        mergeTypes(items.map((name) => scalarOrNull(typeOf(inputBlock(block, name), ctx)))),
       );
       return { element, size: items.length };
     }
     case 'lists_getIndex': {
-      const list = valueType(inputBlock(block, 'VALUE'), seen);
+      const list = typeOf(inputBlock(block, 'VALUE'), ctx);
       return isArrayType(list) ? list.element : null;
     }
     case 'logic_ternary':
       return mergeTypes([
-        valueType(inputBlock(block, 'THEN'), seen),
-        valueType(inputBlock(block, 'ELSE'), seen),
+        typeOf(inputBlock(block, 'THEN'), ctx),
+        typeOf(inputBlock(block, 'ELSE'), ctx),
       ]);
   }
   const check = block.outputConnection?.getCheck() ?? [];
@@ -127,9 +154,8 @@ export function variableType(
   workspace: Workspace,
   varId: string,
   scope: Block | null = null,
-  seen: ReadonlySet<string> = new Set(),
 ): CppType {
-  return assignedType(workspace, varId, scope, seen) ?? 'double';
+  return assignedType(workspace, varId, scope, newContext()) ?? 'double';
 }
 
 /** Declared size of a list variable read by `block`, or `null` if it isn't one. */
@@ -158,13 +184,22 @@ function assignedType(
   workspace: Workspace,
   varId: string,
   scope: Block | null,
-  seen: ReadonlySet<string>,
+  ctx: TypeContext,
 ): CppType | null {
-  const key = `variable:${varId}:${scope?.id ?? ''}`;
-  if (seen.has(key)) return null;
-  const inner = new Set(seen).add(key);
+  return memoized(ctx, `variable:${varId}:${scope?.id ?? ''}`, () =>
+    computeAssignedType(workspace, varId, scope, ctx),
+  );
+}
+
+function computeAssignedType(
+  workspace: Workspace,
+  varId: string,
+  scope: Block | null,
+  ctx: TypeContext,
+): CppType | null {
   const assigned: (CppType | null)[] = [];
-  const blocks = activeBlocks(workspace);
+  ctx.blocks ??= activeBlocks(workspace);
+  const blocks = ctx.blocks;
   for (const block of blocks) {
     // `set item` on this list variable: its value joins the element type (size 0 = no size).
     if (block.type === 'lists_setIndex') {
@@ -174,7 +209,7 @@ function assignedType(
         list.getFieldValue('VAR') === varId &&
         variableScope(list, varId) === scope
       ) {
-        const element = scalarOrNull(valueType(inputBlock(block, 'TO'), inner));
+        const element = scalarOrNull(typeOf(inputBlock(block, 'TO'), ctx));
         if (element) assigned.push({ element, size: 0 });
       }
       continue;
@@ -182,7 +217,7 @@ function assignedType(
     if (block.getFieldValue('VAR') !== varId || variableScope(block, varId) !== scope) continue;
     switch (block.type) {
       case 'variables_set':
-        assigned.push(valueType(inputBlock(block, 'VALUE'), inner));
+        assigned.push(typeOf(inputBlock(block, 'VALUE'), ctx));
         break;
       case 'text_append':
         assigned.push('String');
@@ -200,7 +235,7 @@ function assignedType(
       const isCall =
         call.type === 'procedures_callnoreturn' || call.type === 'procedures_callreturn';
       if (isCall && Blockly.Names.equals(call.getFieldValue('NAME') as string, name)) {
-        assigned.push(valueType(inputBlock(call, `ARG${index}`), inner));
+        assigned.push(typeOf(inputBlock(call, `ARG${index}`), ctx));
       }
     }
   }
@@ -208,29 +243,29 @@ function assignedType(
 }
 
 /** Return type of the function named `name` (`void` for one with no return value). */
-export function functionReturnType(
-  workspace: Workspace,
-  name: string,
-  seen: ReadonlySet<string> = new Set(),
-): ScalarType | 'void' {
+export function functionReturnType(workspace: Workspace, name: string): ScalarType | 'void' {
+  return returnTypeOf(workspace, name, newContext());
+}
+
+function returnTypeOf(workspace: Workspace, name: string, ctx: TypeContext): ScalarType | 'void' {
   const def = Blockly.Procedures.getDefinition(name, workspace);
   if (!def || def.type !== 'procedures_defreturn') return 'void';
-  const key = `function:${name}`;
-  if (seen.has(key)) return 'double';
-  const inner = new Set(seen).add(key);
-  const returned: (CppType | null)[] = [valueType(inputBlock(def, 'RETURN'), inner)];
-  for (const block of def.getDescendants(false)) {
-    if (
-      block.type === 'procedures_ifreturn' &&
-      enclosingFunction(block) === def &&
-      block.isEnabled() &&
-      !block.getInheritedDisabled()
-    ) {
-      returned.push(valueType(inputBlock(block, 'VALUE'), inner));
+  const merged = memoized(ctx, `function:${def.id}`, () => {
+    const returned: (CppType | null)[] = [typeOf(inputBlock(def, 'RETURN'), ctx)];
+    for (const block of def.getDescendants(false)) {
+      if (
+        block.type === 'procedures_ifreturn' &&
+        enclosingFunction(block) === def &&
+        block.isEnabled() &&
+        !block.getInheritedDisabled()
+      ) {
+        returned.push(typeOf(inputBlock(block, 'VALUE'), ctx));
+      }
     }
-  }
+    return mergeTypes(returned);
+  });
   // Arrays can't be returned by value in C++; such a function returns its element type.
-  return scalarOf(mergeTypes(returned));
+  return scalarOf(merged);
 }
 
 /** The procedure definition a block sits in, or `null` for top-level code. */

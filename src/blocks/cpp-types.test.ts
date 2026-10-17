@@ -363,4 +363,62 @@ describe('generator edge cases', () => {
     ]);
     expect(code).toContain('fabs(fmod(2.5, 2)) == 1');
   });
+
+  it('types long variable chains in linear time', () => {
+    // a0 = 1; each a(i) is assigned a(i-1) twice: without memoising, every lookup doubles.
+    const depth = 40;
+    const variables = Array.from({ length: depth }, (_, i) => ({ name: `a${i}`, id: `a${i}` }));
+    const blocks: BlockState[] = [set('a0', num(1))];
+    for (let i = 1; i < depth; i++)
+      blocks.push(set(`a${i}`, get(`a${i - 1}`)), set(`a${i}`, get(`a${i - 1}`)));
+    const ws = load(blocks, variables);
+    const start = performance.now();
+    expect(variableType(ws, `a${depth - 1}`)).toBe('double');
+    expect(performance.now() - start).toBeLessThan(1000);
+  });
+
+  it('refuses counting with a text variable, and changes a text variable numerically', () => {
+    const code = generateCode([
+      set('n', text('hola')),
+      {
+        type: 'controls_for',
+        fields: { VAR: { id: 'n' } },
+        inputs: { FROM: { block: num(1) }, TO: { block: num(3) }, BY: { block: num(1) } },
+      },
+      { type: 'math_change', fields: { VAR: { id: 'n' } }, inputs: { DELTA: { block: num(1) } } },
+    ]);
+    expect(code).toMatch(/#error ".*contar con/);
+    expect(code).not.toContain('for (n =');
+    expect(code).toContain('n = String(n.toDouble() + 1);');
+  });
+
+  it('uses constrain() only for plain arguments; calls go through a helper', () => {
+    const constrain = (value: BlockState): BlockState => ({
+      type: 'math_constrain',
+      inputs: { VALUE: { block: value }, LOW: { block: num(0) }, HIGH: { block: num(10) } },
+    });
+    const code = generateCode([
+      set('n', constrain(get('n'))),
+      set(
+        'l',
+        constrain({
+          type: 'math_random_int',
+          inputs: { FROM: { block: get('n') }, TO: { block: num(20) } },
+        }),
+      ),
+    ]);
+    expect(code).toContain('n = constrain(n, 0, 10);');
+    expect(code).toContain('l = constrainValue(randomInt(n, 20), 0, 10);');
+  });
+
+  it('rounds with floor(x + 0.5), never the AVR round() macro', () => {
+    const code = generateCode([
+      set('n', {
+        type: 'math_round',
+        fields: { OP: 'ROUND' },
+        inputs: { NUM: { block: get('l') } },
+      }),
+    ]);
+    expect(code).toContain('n = floor(l + 0.5);');
+  });
 });
