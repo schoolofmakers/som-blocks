@@ -138,6 +138,24 @@ describe('wifi on the ESP32-C3', () => {
     expect(code).toContain('WiFi2 = 1;');
   });
 
+  it.each(['WL_CONNECTED', 'WIFI_STA', 'HTTPC_STRICT_FOLLOW_REDIRECTS', 'somHttpGet'])(
+    'a student variable called %s is renamed',
+    (name) => {
+      const code = generate(
+        stack(
+          {
+            type: 'variables_set',
+            fields: { VAR: { id: 'v', name } },
+            inputs: { VALUE: { block: { type: 'math_number', fields: { NUM: 1 } } } },
+          },
+          connect,
+        ),
+      );
+      expect(code).toContain(`double ${name}2 = 0;`);
+      expect(code).not.toContain(`double ${name} = 0;`);
+    },
+  );
+
   it('disconnect', () => {
     expect(generate({ type: 'som_wifi_disconnect' })).toContain('  WiFi.disconnect();\n');
   });

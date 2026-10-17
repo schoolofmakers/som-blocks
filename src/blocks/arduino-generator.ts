@@ -59,7 +59,7 @@ export const RESERVED_WORDS: readonly string[] = [
   'attachInterrupt,detachInterrupt,interrupts,noInterrupts,yield',
   // ESP32 WiFi globals / classes and the wifi family's helpers (families/wifi.ts)
   'WiFi,WiFiClient,WiFiClientSecure,HTTPClient,somWifiConnect,somHttpRequest,somHttpGet',
-  'somHttpPost',
+  'somHttpPost,WL_CONNECTED,WIFI_STA,HTTPC_STRICT_FOLLOW_REDIRECTS',
 ].flatMap((line) => line.split(','));
 
 /**
