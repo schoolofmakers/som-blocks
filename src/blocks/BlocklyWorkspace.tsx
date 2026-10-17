@@ -84,8 +84,11 @@ export function BlocklyWorkspace({
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const lastBoardId = useRef(boardId);
   const onCodeRef = useRef(onCodeChange);
-  // Blocks survive a re-inject (language change, StrictMode double mount).
+  // Blocks survive a re-inject (toolbox profile change, StrictMode double mount).
   const savedState = useRef<WorkspaceState | null>(null);
+  const langRef = useRef(lang);
+  /** Language whose messages the live workspace was built or relabelled with. */
+  const appliedLang = useRef<Lang | null>(null);
   const loadRef = useRef(load);
   const loadedKey = useRef<string | undefined>(undefined);
   const onWorkspaceRef = useRef(onWorkspaceChange);
@@ -103,8 +106,8 @@ export function BlocklyWorkspace({
     if (!host) return;
 
     registerBuiltInFamilies();
-    // Rendered block labels are fixed at creation, so a language change re-injects.
-    applyLocale(lang);
+    applyLocale(langRef.current);
+    appliedLang.current = langRef.current;
     Blockly.Scrollbar.scrollbarThickness = SCROLLBAR_THICKNESS;
     const workspace = Blockly.inject(host, workspaceOptions(toolboxProfile));
     workspaceRef.current = workspace;
@@ -136,6 +139,21 @@ export function BlocklyWorkspace({
       workspaceRef.current = null;
       workspace.dispose();
     };
+  }, [toolboxProfile]);
+
+  // Language change: relabel in place, not a re-inject, so the student keeps their undo
+  // history, zoom, scroll and trashcan. Rendered block labels are fixed when a block is
+  // created, so the blocks are re-created from their own state (same ids, so the undo stack
+  // still finds them) under the new messages, with events off (no autosave echo).
+  useEffect(() => {
+    langRef.current = lang;
+    const workspace = workspaceRef.current;
+    if (!workspace || appliedLang.current === lang) return;
+    appliedLang.current = lang;
+    applyLocale(lang);
+    workspace.updateToolbox(buildToolbox(toolboxProfile));
+    loadState(Blockly.serialization.workspaces.save(workspace), workspace);
+    onCodeRef.current?.(arduinoGenerator.workspaceToCode(workspace));
   }, [lang, toolboxProfile]);
 
   // Opening another project: swap the blocks in place (no re-inject).

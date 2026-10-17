@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import * as Blockly from 'blockly/core';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from './App';
 import { LANG_STORAGE_KEY } from './i18n/lang';
+import { useProjectsStore } from './projects/store';
 
 describe('App shell', () => {
   it('renders the title, the workspace and Spanish copy by default', async () => {
@@ -66,6 +67,10 @@ describe('App shell', () => {
           .map((block) => block.type),
       ).toEqual(['som_raw_statement']);
       expect(screen.getByTestId('generated-code')).toHaveTextContent('blink();');
+
+      // Projects created after the switch get the English default name.
+      await act(() => useProjectsStore.getState().create());
+      expect(useProjectsStore.getState().current?.name).toBe('My project');
     });
   });
 });

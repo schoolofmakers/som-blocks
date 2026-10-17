@@ -29,9 +29,12 @@ export function App({ lang: initialLang = DEFAULT_LANG, toolboxProfile = 'starte
   const saveWorkspace = useProjectsStore((state) => state.saveWorkspace);
   const workspaceLoadFailed = useProjectsStore((state) => state.workspaceLoadFailed);
 
-  // Open the last project (or create the first one). init() runs once per page.
+  // New projects are named in the current language, including after a switch. Then open the
+  // last project (or create the first one); init() only loads once per page.
   useEffect(() => {
-    void useProjectsStore.getState().init({ defaultName: t('UI_PROJECT_DEFAULT_NAME', lang) });
+    const projects = useProjectsStore.getState();
+    projects.setDefaultName(t('UI_PROJECT_DEFAULT_NAME', lang));
+    void projects.init();
   }, [lang]);
 
   useEffect(() => {
@@ -39,8 +42,8 @@ export function App({ lang: initialLang = DEFAULT_LANG, toolboxProfile = 'starte
     document.title = t('UI_APP_TITLE', lang);
   }, [lang]);
 
-  // Every string re-renders from `lang`; BlocklyWorkspace re-injects on a `lang` change
-  // (applyLocale + rebuilt toolbox) and restores its blocks.
+  // Every string re-renders from `lang`; BlocklyWorkspace relabels its toolbox and blocks in
+  // place on a `lang` change (applyLocale), keeping blocks, undo history and zoom.
   const changeLang = (next: Lang) => {
     chooseLang(next);
     setLang(next);

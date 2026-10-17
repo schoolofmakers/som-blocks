@@ -39,6 +39,43 @@ describe('BlocklyWorkspace', () => {
     expect(screen.getByTestId('blockly-workspace')).toHaveAccessibleName('Blocks workspace');
   });
 
+  it('relabels in place on a language switch, keeping undo history and zoom', async () => {
+    const onCodeChange = vi.fn();
+    const onWorkspaceChange = vi.fn();
+    const { rerender } = render(
+      <BlocklyWorkspace
+        lang="es"
+        onCodeChange={onCodeChange}
+        onWorkspaceChange={onWorkspaceChange}
+      />,
+    );
+    const workspace = Blockly.getMainWorkspace() as Blockly.WorkspaceSvg;
+    Blockly.serialization.blocks.append({ type: 'som_serial_available' }, workspace, {
+      recordUndo: true,
+    });
+    workspace.setScale(1.5);
+    await waitFor(() => expect(workspace.getUndoStack().length).toBeGreaterThan(0));
+    expect(workspace.getAllBlocks(false)[0]?.toString()).toContain('llegó un mensaje');
+
+    onWorkspaceChange.mockClear();
+    rerender(
+      <BlocklyWorkspace
+        lang="en"
+        onCodeChange={onCodeChange}
+        onWorkspaceChange={onWorkspaceChange}
+      />,
+    );
+    // Same workspace, new labels, same zoom; relabelling is not an edit to autosave.
+    expect(Blockly.getMainWorkspace()).toBe(workspace);
+    expect(workspace.getScale()).toBe(1.5);
+    expect(workspace.getAllBlocks(false)[0]?.toString()).toContain('a message arrived');
+    expect(onWorkspaceChange).not.toHaveBeenCalled();
+
+    // Undo still reaches the block created before the switch.
+    workspace.undo(false);
+    expect(workspace.getAllBlocks(false)).toHaveLength(0);
+  });
+
   it('regenerates the code when the board changes, without re-injecting', () => {
     const onCodeChange = vi.fn();
     const { rerender } = render(

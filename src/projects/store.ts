@@ -56,6 +56,8 @@ export interface ProjectsState {
   /** The editor could not load the open project's workspace. */
   workspaceLoadFailed: () => Promise<void>;
   dismissNotice: () => void;
+  /** Name for projects created from now on (the UI language's "My project"). */
+  setDefaultName: (name: string) => void;
 }
 
 // Module state that never needs to re-render anything.
@@ -403,6 +405,10 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
     },
 
     dismissNotice: () => set({ notice: null }),
+
+    setDefaultName: (name) => {
+      if (name) defaultName = name;
+    },
   };
 });
 
