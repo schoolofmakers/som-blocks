@@ -8,7 +8,6 @@ import { CompileButton } from './compile/CompileButton';
 import { LogPanel } from './compile/LogPanel';
 import { ServerSettings } from './compile/ServerSettings';
 import { UploadButton } from './flash/UploadButton';
-import { SerialPanel } from './serial/SerialPanel';
 import { chooseLang } from './i18n/lang';
 import { LanguageSwitch } from './i18n/LanguageSwitch';
 import { DEFAULT_LANG, t, type Lang } from './i18n/messages';
