@@ -1,0 +1,81 @@
+# Flash on real boards — manual checklist (B8)
+
+CI cannot open the browser's serial port chooser, so every flasher change is checked by hand on
+real boards before merge (`_config/standards.md` → Quality gates). Put the log panel text (or a
+photo/video) for each row in the PR.
+
+## Setup
+
+- Boards: **ESP32-C3 SuperMini** (native USB, VID 0x303a) and **Arduino NANO, old bootloader**
+  (CH340, 57600 baud). UNO when one is at hand.
+- Browser: desktop **Chrome or Edge** (Web Serial). Close the Arduino IDE and any other tab that
+  may hold the port.
+- Editor: `pnpm dev` (or the preview build) with `VITE_COMPILE_SERVER_URL` pointing at a compile
+  server that has the C3 core (`server/compile`).
+- Sketch: a blink on the board's LED (C3: GPIO 8, active-low; NANO: D13), plus a
+  `Serial.println("hola")` in `setup()` so the boot is visible.
+
+## Happy path (each board)
+
+1. Pick the board in **Placa**, press **Conectar** → **Conectar por USB**, choose the port.
+2. Press **Compilar**, wait for "Listo …".
+3. Press **Subir**. The bar goes through the phases and ends on
+   "¡Listo! Tu programa ya está en la placa." The header still says **Conectada**.
+4. The LED blinks with the new program.
+
+Expected lines in the log panel, in order. These come from the libraries' source, not from a
+recorded run yet: wording may differ slightly and numbers vary.
+
+**ESP32-C3 SuperMini (esptool-js)**
+
+```
+Connecting...
+Detecting chip type... ESP32-C3
+Chip is ESP32-C3 (QFN32) (revision v0.4)
+Features: …
+MAC: …
+Uploading stub...
+Running stub...
+Stub running...
+Changing baudrate to 921600
+Writing at 0x0... (100%)
+Wrote 20000 bytes (… compressed) at 0x0 in … seconds.
+Writing at 0x8000... (100%)
+Writing at 0xe000... (100%)
+Writing at 0x10000... (…%)
+Wrote … bytes (… compressed) at 0x10000 in … seconds.
+Leaving...
+Hard resetting via RTS pin...
+```
+
+The first `Wrote … at 0x0` line is the point of this PR: the bootloader goes to **0x0**, not
+the 0x1000 the compile server sends. If it says `0x1000`, stop: the board will not boot.
+
+**Arduino NANO old bootloader (avrgirl)**
+
+```
+connected
+reset complete.
+flashing, please wait...
+flash complete.
+```
+
+avrgirl gives no byte progress: the bar sits at 50 % while it writes, which is expected.
+
+## Failure cases (each board)
+
+| Try | How | Expected |
+|---|---|---|
+| Wrong board selected | C3 plugged in, **Arduino NANO** selected (and the reverse) | Upload stops with a red message: "La placa no respondió. Revisa que elegiste la placa correcta…" (the C3 message adds the BOOT/RESET hint). An ESP32 that is not a C3, with the C3 selected → "La placa conectada no es la que elegiste…". Nothing is written. The header still says **Conectada** (or **Conectar** if the port did not come back). |
+| Unplug mid-flash | Pull the USB cable while the bar is moving | "Se cortó la subida…" or "Se perdió la conexión…". The header goes back to **Conectar** within a few seconds. Plug in, reconnect, upload again: it works. |
+| Cancel (C3 only) | Press **Cancelar** while "Escribiendo tu programa…" is showing | "Cancelaste la subida…". The port comes back (**Conectada**). Uploading again works. The NANO has no Cancel button (avrgirl cannot stop midway). |
+
+If the C3 never syncs ("…mantén apretado BOOT…"), do exactly what the message says: hold BOOT,
+press and release RESET, release BOOT, press **Subir** again. Note in the PR whether this was
+needed: a SuperMini on native USB should normally reset into the bootloader by itself.
+
+## Also note in the PR
+
+- Whether the C3 serial output (`hola`) is readable right after the upload (the port reopens at
+  115200; the serial monitor itself is B9).
+- Chrome version and OS.

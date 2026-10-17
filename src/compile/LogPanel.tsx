@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useFlashStore } from '../flash/store';
 import { t, type Lang } from '../i18n/messages';
 import { statusLine, stripAnsi } from './status';
 import { useCompileStore } from './store';
@@ -9,11 +10,17 @@ interface LogPanelProps {
 
 /**
  * Status line + arduino-cli output, verbatim (_config/standards.md: never hide compiler
- * errors). The log is a React text child, so `<`/`>` in gcc messages render as typed.
+ * errors), followed by the upload log. The log is a React text child, so `<`/`>` in gcc messages render as typed.
  */
 export function LogPanel({ lang }: LogPanelProps) {
   const status = useCompileStore((s) => s.status);
-  const log = stripAnsi(useCompileStore((s) => s.log));
+  const compileLog = stripAnsi(useCompileStore((s) => s.log));
+  // Upload output (B8) follows the compiler output in the same panel.
+  const flashLog = useFlashStore((s) => s.log);
+  const log =
+    flashLog.length === 0
+      ? compileLog
+      : `${compileLog}${compileLog === '' || compileLog.endsWith('\n') ? '' : '\n'}${flashLog.join('\n')}`;
   const result = useCompileStore((s) => s.result);
   const error = useCompileStore((s) => s.error);
   const durationMs = useCompileStore((s) => s.durationMs);

@@ -7,12 +7,14 @@ import { CodeView } from './codeview/CodeView';
 import { CompileButton } from './compile/CompileButton';
 import { LogPanel } from './compile/LogPanel';
 import { ServerSettings } from './compile/ServerSettings';
+import { UploadButton } from './flash/UploadButton';
 import { SerialPanel } from './serial/SerialPanel';
 import { chooseLang } from './i18n/lang';
 import { LanguageSwitch } from './i18n/LanguageSwitch';
 import { DEFAULT_LANG, t, type Lang } from './i18n/messages';
 import { ProjectNotice, ProjectsMenu } from './projects/ProjectsMenu';
 import { useProjectsStore } from './projects/store';
+import { SerialPanel } from './serial/SerialPanel';
 import { ConnectButton } from './transport/ConnectScreen';
 
 interface AppProps {
@@ -61,6 +63,7 @@ export function App({ lang: initialLang = DEFAULT_LANG, toolboxProfile = 'starte
           <BoardPicker lang={lang} />
           <ServerSettings lang={lang} />
           <CompileButton lang={lang} code={code} boardId={boardId} />
+          <UploadButton lang={lang} code={code} boardId={boardId} />
           <ConnectButton lang={lang} />
           <LanguageSwitch lang={lang} onChange={changeLang} />
         </div>
