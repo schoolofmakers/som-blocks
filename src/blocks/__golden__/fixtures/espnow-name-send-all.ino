@@ -24,10 +24,15 @@ bool somEspNowReady = false;
 String somEspNowValue = "";        // the message a "when a message arrives" block is handling
 String somEspNowFrom = "";
 
-// Copy text into a fixed field, cut to fit and always null-terminated.
+// Copy text into a fixed field, always null-terminated. Text too long is cut before the
+// UTF-8 character that would not fit (like names typed in blocks), never in its middle.
 void somEspNowCopy(char *field, size_t size, const char *text) {
-  strncpy(field, text, size - 1);
-  field[size - 1] = '\0';
+  size_t end = size - 1;
+  strncpy(field, text, end);
+  if (strnlen(text, size) > end) {
+    while (end > 0 && ((uint8_t)text[end] & 0xC0) == 0x80) end--;
+  }
+  field[end] = '\0';
 }
 
 // Runs in the WiFi task: keep the packet if it is for me or for everyone, then return.

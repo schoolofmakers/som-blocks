@@ -19,6 +19,7 @@ import {
   ESPNOW_NAME_MAX_BYTES,
   ESPNOW_VALUE_MAX_BYTES,
   espNowName,
+  espnowFamily,
   hasEspNow,
 } from './espnow';
 
@@ -136,15 +137,59 @@ describe('espnow on the ESP32-C3', () => {
     );
   });
 
-  it('copies with strncpy and always null-terminates', () => {
+  it('copies with strncpy, cuts at a whole UTF-8 character and always null-terminates', () => {
     const code = generate(sendAll(text('x')));
-    expect(functionBody(code, 'void somEspNowCopy(')).toContain(
-      "strncpy(field, text, size - 1);\n  field[size - 1] = '\\0';",
-    );
+    const copy = functionBody(code, 'void somEspNowCopy(');
+    expect(copy).toContain('strncpy(field, text, end);');
+    expect(copy).toContain('while (end > 0 && ((uint8_t)text[end] & 0xC0) == 0x80) end--;');
+    expect(copy).toContain("field[end] = '\\0';");
     const send = functionBody(code, 'void somEspNowSend(');
     expect(send).toContain('if (!somEspNowReady) return;');
     expect(send).toContain('memset(&packet, 0, sizeof(packet));');
     expect(send).toContain('somEspNowCopy(packet.value, sizeof(packet.value), value.c_str());');
+  });
+
+  it('a hat nested in another gives the outer one its message back', () => {
+    const inner = onMessage('b', println({ type: 'som_espnow_msg_value' }));
+    const outer = onMessage(
+      null,
+      stack(inner, sendTo({ type: 'som_espnow_msg_value' }, { type: 'som_espnow_msg_sender' })),
+    );
+    const code = generate(outer);
+    expect(code).toContain(
+      '  while (somEspNowNext(som_espnow_read, nullptr)) {\n' +
+        '    {\n' +
+        '      String som_espnow_outer_value = somEspNowValue;\n' +
+        '      String som_espnow_outer_from = somEspNowFrom;\n' +
+        '      while (somEspNowNext(som_espnow_read2, "b")) {\n' +
+        '        Serial.println(somEspNowValue);\n' +
+        '      }\n' +
+        '      somEspNowValue = som_espnow_outer_value;\n' +
+        '      somEspNowFrom = som_espnow_outer_from;\n' +
+        '    }\n' +
+        '    somEspNowSend(somEspNowFrom, somEspNowValue);\n',
+    );
+    // A top-level hat stays a plain loop.
+    expect(generate(onMessage(null))).not.toContain('som_espnow_outer_value');
+  });
+
+  it('toolbox examples follow the language; send and receive default to the same board', () => {
+    const shadowText = (type: string, input: string): unknown => {
+      const item = espnowFamily.toolbox;
+      if (Array.isArray(item)) throw new Error('expected a category');
+      const block = item.contents.find((c) => c.kind === 'block' && c.type === type);
+      const inputs = (
+        block as { inputs?: Record<string, { shadow: { fields: { TEXT: string } } }> }
+      ).inputs;
+      return inputs?.[input]?.shadow.fields.TEXT;
+    };
+    expect(shadowText('som_espnow_send_to', 'VALUE')).toBe('hola');
+    expect(shadowText('som_espnow_send_to', 'TO')).toBe('placa2');
+    applyLocale('en');
+    expect(shadowText('som_espnow_send_to', 'VALUE')).toBe('hello');
+    expect(shadowText('som_espnow_send_all', 'VALUE')).toBe('hello');
+    expect(shadowText('som_espnow_send_to', 'TO')).toBe(Blockly.Msg['SOM_ESPNOW_FROM_DEFAULT']);
+    expect(shadowText('som_espnow_send_to', 'TO')).toBe('board2');
   });
 
   it('a hat that falls behind skips the oldest messages and counts them', () => {

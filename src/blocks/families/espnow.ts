@@ -3,7 +3,7 @@ import type { Chip } from '../../boards/types';
 import { Order, type ArduinoGenerator } from '../arduino-generator';
 import { compileError, cppString, stringInput } from '../cpp-types';
 import { currentChip } from '../pins';
-import type { BlockFamily } from '../types';
+import type { BlockFamily, ToolboxCategory } from '../types';
 import { truncateUtf8 } from './ble';
 
 // `espnow` family (ESP32 only): boards talk to each other by name, without a router.
@@ -33,7 +33,9 @@ import { truncateUtf8 } from './ble';
 //   under ESP-NOW's 250-byte limit. Names hold 15 bytes, values 199 (tooltips say so). Names
 //   typed in blocks are cut to 15 UTF-8 bytes when the code is generated (like BLE's 29-byte
 //   cap), so the code shows the name that really travels; runtime strings (a variable, `who
-//   sent it`) are cut by `strncpy` at 15 / 199 bytes, always null-terminated.
+//   sent it`) are cut by `somEspNowCopy` the same way — at most 15 / 199 bytes, never in the
+//   middle of a UTF-8 character, always null-terminated — so a typed name and the same text
+//   in a variable travel identically.
 // - The receive callback runs in the WiFi task, never in loop(): it copies the packet into a
 //   ring queue of 8 under a mutex (BLE's counter-under-mutex pattern) and returns. Messages
 //   not addressed to this board's name or to everyone ("*") are dropped right there. Student
@@ -91,10 +93,15 @@ bool somEspNowReady = false;
 String somEspNowValue = "";        // the message a "when a message arrives" block is handling
 String somEspNowFrom = "";
 
-// Copy text into a fixed field, cut to fit and always null-terminated.
+// Copy text into a fixed field, always null-terminated. Text too long is cut before the
+// UTF-8 character that would not fit (like names typed in blocks), never in its middle.
 void somEspNowCopy(char *field, size_t size, const char *text) {
-  strncpy(field, text, size - 1);
-  field[size - 1] = '\\0';
+  size_t end = size - 1;
+  strncpy(field, text, end);
+  if (strnlen(text, size) > end) {
+    while (end > 0 && ((uint8_t)text[end] & 0xC0) == 0x80) end--;
+  }
+  field[end] = '\\0';
 }
 
 // Runs in the WiFi task: keep the packet if it is for me or for everyone, then return.
@@ -215,6 +222,14 @@ function targetName(block: Blockly.Block, generator: ArduinoGenerator): string {
     return cppString(espNowName(String(child.getFieldValue('TEXT') ?? '')));
   }
   return stringInput(block, generator, 'TO', Order.COMMA) ?? '""';
+}
+
+/** The block sits (at any depth) inside another `when a message arrives` block. */
+function insideAnotherHat(block: Blockly.Block): boolean {
+  for (let parent = block.getSurroundParent(); parent; parent = parent.getSurroundParent()) {
+    if (parent.type === 'som_espnow_on_message') return true;
+  }
+  return false;
 }
 
 function sendValue(block: Blockly.Block, generator: ArduinoGenerator): string {
@@ -363,7 +378,30 @@ export const espnowFamily: BlockFamily = {
           : '';
       const from = name ? cppString(name) : 'nullptr';
       const body = generator.statementToCode(block, 'DO');
-      return `while (somEspNowNext(${read}, ${from})) {\n${body}}\n`;
+      const loop = `while (somEspNowNext(${read}, ${from})) {\n${body}}\n`;
+      if (!insideAnotherHat(block)) return loop;
+      // Nested in another `when a message arrives`: give the outer block its message back
+      // afterwards, so `received message` / `who sent it` after this block still mean its own.
+      const value = generator.nameDB_.getDistinctName(
+        'som_espnow_outer_value',
+        Blockly.Names.NameType.VARIABLE,
+      );
+      const sender = generator.nameDB_.getDistinctName(
+        'som_espnow_outer_from',
+        Blockly.Names.NameType.VARIABLE,
+      );
+      return (
+        '{\n' +
+        generator.prefixLines(
+          `String ${value} = somEspNowValue;\n` +
+            `String ${sender} = somEspNowFrom;\n` +
+            loop +
+            `somEspNowValue = ${value};\n` +
+            `somEspNowFrom = ${sender};\n`,
+          generator.INDENT,
+        ) +
+        '}\n'
+      );
     },
     som_espnow_msg_value: (_block, generator) => {
       if (!ensureEspNow(generator)) return [`/* ${errorText()} */ String("")`, Order.ATOMIC];
@@ -378,30 +416,40 @@ export const espnowFamily: BlockFamily = {
       return ['somEspNowValue.toFloat()', Order.POSTFIX];
     },
   },
-  toolbox: {
-    kind: 'category',
-    name: '%{BKY_SOM_ESPNOW_CATEGORY}',
-    colour: COLOUR,
-    contents: [
-      { kind: 'block', type: 'som_espnow_name' },
-      {
-        kind: 'block',
-        type: 'som_espnow_send_to',
-        inputs: {
-          VALUE: { shadow: { type: 'text', fields: { TEXT: 'hola' } } },
-          TO: { shadow: { type: 'text', fields: { TEXT: 'placa2' } } },
+  // A getter: the example texts in the shadows are field values, which Blockly does not
+  // translate, so they are read from the current locale each time the toolbox is built
+  // (`applyLocale` runs before every `buildToolbox`).
+  get toolbox(): ToolboxCategory {
+    const example = () => ({
+      shadow: { type: 'text', fields: { TEXT: Blockly.Msg['SOM_ESPNOW_EXAMPLE_VALUE'] ?? '' } },
+    });
+    return {
+      kind: 'category',
+      name: '%{BKY_SOM_ESPNOW_CATEGORY}',
+      colour: COLOUR,
+      contents: [
+        { kind: 'block', type: 'som_espnow_name' },
+        {
+          kind: 'block',
+          type: 'som_espnow_send_to',
+          inputs: {
+            VALUE: example(),
+            // The same name the receive block filters on by default.
+            TO: {
+              shadow: {
+                type: 'text',
+                fields: { TEXT: Blockly.Msg['SOM_ESPNOW_FROM_DEFAULT'] ?? '' },
+              },
+            },
+          },
         },
-      },
-      {
-        kind: 'block',
-        type: 'som_espnow_send_all',
-        inputs: { VALUE: { shadow: { type: 'text', fields: { TEXT: 'hola' } } } },
-      },
-      { kind: 'block', type: 'som_espnow_on_message' },
-      { kind: 'block', type: 'som_espnow_msg_value' },
-      { kind: 'block', type: 'som_espnow_msg_sender' },
-      { kind: 'block', type: 'som_espnow_msg_as_number' },
-    ],
+        { kind: 'block', type: 'som_espnow_send_all', inputs: { VALUE: example() } },
+        { kind: 'block', type: 'som_espnow_on_message' },
+        { kind: 'block', type: 'som_espnow_msg_value' },
+        { kind: 'block', type: 'som_espnow_msg_sender' },
+        { kind: 'block', type: 'som_espnow_msg_as_number' },
+      ],
+    };
   },
   messages: {
     es: {
@@ -423,6 +471,7 @@ export const espnowFamily: BlockFamily = {
       SOM_ESPNOW_FROM_ANYONE: 'cualquiera',
       SOM_ESPNOW_FROM_NAMED: 'la placa',
       SOM_ESPNOW_FROM_DEFAULT: 'placa2',
+      SOM_ESPNOW_EXAMPLE_VALUE: 'hola',
       SOM_ESPNOW_ON_MESSAGE_DO: 'hacer %1',
       SOM_ESPNOW_ON_MESSAGE_TOOLTIP:
         'Hace estos bloques una vez por cada mensaje que llega para ti o para todos. Elige "cualquiera" o el nombre de una placa. Si llegan más de 8 juntos, se pierden los más viejos.',
@@ -455,6 +504,7 @@ export const espnowFamily: BlockFamily = {
       SOM_ESPNOW_FROM_ANYONE: 'anyone',
       SOM_ESPNOW_FROM_NAMED: 'the board',
       SOM_ESPNOW_FROM_DEFAULT: 'board2',
+      SOM_ESPNOW_EXAMPLE_VALUE: 'hello',
       SOM_ESPNOW_ON_MESSAGE_DO: 'do %1',
       SOM_ESPNOW_ON_MESSAGE_TOOLTIP:
         'Runs these blocks once for every message sent to you or to everyone. Pick "anyone" or the name of a board. If more than 8 arrive at once, the oldest are lost.',
