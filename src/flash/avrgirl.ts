@@ -123,6 +123,28 @@ export const avrgirlFlasher: Flasher = {
       throw avrgirlError(error, phase);
     } finally {
       restore();
+      // avrgirl closes its port without awaiting it; the caller reopens the port next.
+      await waitForRelease(port);
     }
   },
 };
+
+export const RELEASE_TIMEOUT_MS = 2_000;
+
+/**
+ * Resolves once the Web Serial port is closed (`readable` and `writable` are null), or after
+ * `timeoutMs`; the caller's reopen then reports a port that is still held.
+ */
+export async function waitForRelease(
+  port: unknown,
+  timeoutMs = RELEASE_TIMEOUT_MS,
+  stepMs = 50,
+): Promise<void> {
+  const held = () => {
+    const p = port as { readable?: unknown; writable?: unknown };
+    return (p.readable ?? null) !== null || (p.writable ?? null) !== null;
+  };
+  for (let waited = 0; held() && waited < timeoutMs; waited += stepMs) {
+    await new Promise((resolve) => setTimeout(resolve, stepMs));
+  }
+}

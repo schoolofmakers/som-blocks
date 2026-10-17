@@ -1,12 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fullFqbn } from '../boards/types';
 import { getBoard } from '../boards/registry';
 import { sketchRequest } from '../compile/client';
 import { useCompileStore } from '../compile/store';
 import type { CompileRequest, CompileResult } from '../compile/types';
 import { fakeTransport, type FakeTransport } from '../test/fake-transport';
+import { useSerialStore } from '../serial/store';
 import { useTransportStore } from '../transport/store';
-import { reopenTransport, uploadErrorKey, useFlashStore } from './store';
+import { uploadErrorKey, useFlashStore } from './store';
 import { FlashError, type Flasher, type FlashHooks } from './types';
 
 // The store with a fake flasher (no esptool-js/avrgirl) and a fake transport that records
@@ -32,6 +33,7 @@ const AVR: CompileResult = { kind: 'avr', hex: new Uint8Array([0x3a]), log: '' }
 const initialFlash = useFlashStore.getState();
 const initialCompile = useCompileStore.getState();
 const initialTransport = useTransportStore.getState();
+const initialSerial = useSerialStore.getState();
 
 function request(code = CODE, boardId = BOARD_ID): CompileRequest {
   return sketchRequest(code, fullFqbn(getBoard(boardId)));
@@ -58,6 +60,7 @@ describe('flash store upload()', () => {
       },
       true,
     );
+    useSerialStore.setState({ ...initialSerial, baud: 115200, muted: false }, true);
     h.supportsCancel = true;
     h.flash.mockReset().mockImplementation(async (_result, _board, t, hooks) => {
       transport.events.push(
@@ -68,19 +71,17 @@ describe('flash store upload()', () => {
     });
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('closes the port before the flasher, reopens it after, and toggles isFlashing', async () => {
     const seen: boolean[] = [];
     const unsubscribe = useFlashStore.subscribe((state) => seen.push(state.isFlashing));
     await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
     unsubscribe();
 
+    // The transport store's reopen() closes (a no-op here) before it opens.
     expect(transport.events).toEqual([
       'close',
       'flash (port open: false, isFlashing: true)',
+      'close',
       'open 115200',
     ]);
     const [result, board] = h.flash.mock.calls[0]!;
@@ -92,6 +93,37 @@ describe('flash store upload()', () => {
     expect(state.log).toEqual(['flasher says hi']);
     expect(seen).toContain(true);
     expect(seen.at(-1)).toBe(false);
+    expect(useTransportStore.getState()).toMatchObject({ status: 'connected', transport });
+  });
+
+  it('mutes the serial monitor before the port closes and unmutes after it reopens', async () => {
+    const unsubscribe = useSerialStore.subscribe((state, previous) => {
+      if (state.muted !== previous.muted) transport.events.push(`muted ${String(state.muted)}`);
+    });
+    await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
+    unsubscribe();
+    expect(transport.events).toEqual([
+      'muted true',
+      'close',
+      'flash (port open: false, isFlashing: true)',
+      'close',
+      'open 115200',
+      'muted false',
+    ]);
+    expect(useSerialStore.getState().muted).toBe(false);
+  });
+
+  it('a failed flash unmutes too', async () => {
+    h.flash.mockRejectedValue(new FlashError('sync-failed', 'no answer'));
+    await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
+    expect(useSerialStore.getState().muted).toBe(false);
+  });
+
+  it("reopens at the serial monitor's baud through the transport store", async () => {
+    useSerialStore.setState({ baud: 9600 });
+    await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
+    expect(transport.events.at(-1)).toBe('open 9600');
+    expect(useTransportStore.getState().baudRate).toBe(9600);
   });
 
   it('a failed flash still reopens the port and maps the code to a message', async () => {
@@ -111,28 +143,33 @@ describe('flash store upload()', () => {
     expect(useFlashStore.getState().error).toEqual({ key: 'UI_UPLOAD_ERR_WRITE', detail: 'boom' });
   });
 
-  it('when the port does not come back, the transport store is told it is gone', async () => {
-    vi.useFakeTimers();
+  it('when the port does not come back, the connection ends with an error', async () => {
     transport.open.mockRejectedValue(new Error('Failed to open serial port.'));
-    const done = useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
-    await vi.runAllTimersAsync();
-    await done;
-    expect(transport.open).toHaveBeenCalledTimes(5);
-    expect(useTransportStore.getState().disconnect).toHaveBeenCalled();
-    expect(useTransportStore.getState().status).toBe('disconnected');
+    await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
+    expect(useTransportStore.getState()).toMatchObject({ status: 'error', transport: null });
+    expect(transport.isOpen).toBe(false);
     expect(useFlashStore.getState().isFlashing).toBe(false);
     expect(useFlashStore.getState().log.at(-1)).toMatch(/did not reopen/);
+    expect(useSerialStore.getState().muted).toBe(false);
   });
 
   it('stays locked until the port is back: a second click during the reopen is ignored', async () => {
-    vi.useFakeTimers();
-    transport.open.mockRejectedValueOnce(new Error('busy'));
+    let reopened: () => void = () => {};
+    transport.open.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          reopened = () => {
+            transport.isOpen = true;
+            resolve();
+          };
+        }),
+    );
     const first = useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
     await vi.waitFor(() => expect(transport.open).toHaveBeenCalledTimes(1));
-    // Flash finished, first reopen failed, waiting before the retry.
+    // The flash is over, the reopen is still pending.
     expect(useFlashStore.getState()).toMatchObject({ status: 'flashing', isFlashing: true });
     await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
-    await vi.runAllTimersAsync();
+    reopened();
     await first;
     expect(h.flash).toHaveBeenCalledTimes(1);
     expect(useFlashStore.getState()).toMatchObject({ status: 'done', isFlashing: false });
@@ -146,17 +183,6 @@ describe('flash store upload()', () => {
     expect(transport.open).not.toHaveBeenCalled();
     expect(transport.isOpen).toBe(false);
     expect(useFlashStore.getState().isFlashing).toBe(false);
-  });
-
-  it('a port reconnected elsewhere while reopening is closed again', async () => {
-    transport.open.mockImplementation(async () => {
-      transport.isOpen = true;
-      useTransportStore.setState({ transport: fakeTransport() });
-    });
-    await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
-    expect(transport.open).toHaveBeenCalledTimes(1);
-    expect(transport.events.at(-1)).toBe('close');
-    expect(transport.isOpen).toBe(false);
   });
 
   it('a compile started by hand clears the previous upload output', async () => {
@@ -240,23 +266,5 @@ describe('uploadErrorKey', () => {
     );
     expect(uploadErrorKey('sync-failed', getBoard('uno'))).toBe('UI_UPLOAD_ERR_SYNC_AVR');
     expect(uploadErrorKey('transport', getBoard('uno'))).toBe('UI_UPLOAD_ERR_TRANSPORT');
-  });
-});
-
-describe('reopenTransport', () => {
-  it('retries until the port opens', async () => {
-    const transport = fakeTransport();
-    transport.isOpen = false;
-    transport.open.mockRejectedValueOnce(new Error('busy')).mockImplementationOnce(async () => {
-      transport.isOpen = true;
-    });
-    expect(await reopenTransport(transport, 3, 0)).toBe(true);
-    expect(transport.open).toHaveBeenCalledTimes(2);
-  });
-
-  it('does nothing when the port is already open', async () => {
-    const transport = fakeTransport();
-    expect(await reopenTransport(transport, 3, 0)).toBe(true);
-    expect(transport.open).not.toHaveBeenCalled();
   });
 });

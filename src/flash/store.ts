@@ -5,7 +5,8 @@ import { sketchRequest } from '../compile/client';
 import { useCompileStore } from '../compile/store';
 import type { CompileRequest, CompileResult } from '../compile/types';
 import type { MessageKey } from '../i18n/messages';
-import { DEFAULT_BAUD_RATE, useTransportStore } from '../transport/store';
+import { useSerialStore } from '../serial/store';
+import { useTransportStore } from '../transport/store';
 import type { Transport } from '../transport/types';
 import { selectFlasher } from './select';
 import { errorText, FlashError, type FlashErrorCode, type FlashPhase } from './types';
@@ -72,50 +73,24 @@ function sameRequest(a: CompileRequest | null, b: CompileRequest): boolean {
   );
 }
 
-export const REOPEN_ATTEMPTS = 5;
-export const REOPEN_DELAY_MS = 300;
-
-/**
- * Gives the port back after a flash. The board is rebooting (and a native-USB C3 may
- * re-enumerate) and avrgirl closes its port without awaiting it, so the first open can fail:
- * retry a few times before giving up.
- */
-export async function reopenTransport(
-  transport: Transport,
-  attempts = REOPEN_ATTEMPTS,
-  delayMs = REOPEN_DELAY_MS,
-): Promise<boolean> {
-  for (let i = 0; i < attempts; i++) {
-    if (transport.isOpen) return true;
-    try {
-      await transport.open({ baudRate: DEFAULT_BAUD_RATE });
-      return true;
-    } catch {
-      if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-  }
-  return transport.isOpen;
-}
-
 /**
  * Never leave the port closed behind the connect screen's back. If the transport store still
- * owns this transport, reopen it, or tell the store it is gone so the header shows "Conectar"
- * again. If the student disconnected (or reconnected) meanwhile, the store forgot it: keep it
- * closed so it does not hold the USB port.
+ * owns this transport, reopen it at the serial monitor's baud (B9) through the store's
+ * `reopen()`, which ends the connection with an error when the port will not open. If the
+ * student disconnected (or reconnected) meanwhile, the store forgot it: keep it closed so it
+ * does not hold the USB port. (`reopen()` itself closes the port when it loses such a race.)
  */
 async function giveBack(transport: Transport, log: (line: string) => void): Promise<void> {
-  const owned = () => useTransportStore.getState().transport === transport;
-  if (!owned()) {
+  const transportStore = useTransportStore.getState();
+  if (transportStore.transport !== transport) {
     await transport.close();
     return;
   }
-  if (!(await reopenTransport(transport))) {
+  await transportStore.reopen(useSerialStore.getState().baud);
+  const after = useTransportStore.getState();
+  if (after.transport !== transport && after.status === 'error') {
     log('port did not reopen after the upload; connect again');
-    if (owned()) await useTransportStore.getState().disconnect();
-    return;
   }
-  // Ownership can also change during the reopen retries.
-  if (!owned()) await transport.close();
 }
 
 let controller: AbortController | null = null;
@@ -184,8 +159,11 @@ export const useFlashStore = create<FlashState>()((set, get) => {
         percent: 0,
       });
       // The outcome is published only after the port is back, so the button (and a second
-      // upload()) stay locked through the reopen retries.
+      // upload()) stay locked through the reopen.
       let failure: UploadError | null = null;
+      // The serial monitor (B9) drops incoming bytes while muted: during a flash they are
+      // bootloader traffic, not the student's output.
+      useSerialStore.getState().setMuted(true);
       try {
         // Release the port before the flasher takes it (the flashers close it too; it is
         // idempotent). Readers like the serial monitor see `isFlashing` and stay away.
@@ -205,7 +183,13 @@ export const useFlashStore = create<FlashState>()((set, get) => {
       } finally {
         if (controller === mine) controller = null;
         set({ canCancel: false });
-        await giveBack(transport, appendLog);
+        try {
+          await giveBack(transport, appendLog);
+        } finally {
+          // Unmuted only once the port is back at the monitor's baud, so no bootloader traffic
+          // ever reaches the monitor.
+          useSerialStore.getState().setMuted(false);
+        }
         if (failure) fail(failure);
         else set({ status: 'done', phase: 'done', percent: 100 });
         set({ isFlashing: false });

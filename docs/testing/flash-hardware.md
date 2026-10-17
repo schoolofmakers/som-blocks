@@ -66,8 +66,8 @@ avrgirl gives no byte progress: the bar sits at 50 % while it writes, which is e
 
 | Try | How | Expected |
 |---|---|---|
-| Wrong board selected | C3 plugged in, **Arduino NANO** selected (and the reverse) | Upload stops with a red message: "La placa no respondió. Revisa que elegiste la placa correcta…" (the C3 message adds the BOOT/RESET hint). An ESP32 that is not a C3, with the C3 selected → "La placa conectada no es la que elegiste…". Nothing is written. The header still says **Conectada** (or **Conectar** if the port did not come back). |
-| Unplug mid-flash | Pull the USB cable while the bar is moving | "Se cortó la subida…" or "Se perdió la conexión…". The header goes back to **Conectar** within a few seconds. Plug in, reconnect, upload again: it works. |
+| Wrong board selected | C3 plugged in, **Arduino NANO** selected (and the reverse) | Upload stops with a red message: "La placa no respondió. Revisa que elegiste la placa correcta…" (the C3 message adds the BOOT/RESET hint). An ESP32 that is not a C3, with the C3 selected → "La placa conectada no es la que elegiste…". Nothing is written. The header still says **Conectada** (or **Sin conexión** if the port did not come back). |
+| Unplug mid-flash | Pull the USB cable while the bar is moving | "Se cortó la subida…" or "Se perdió la conexión…". The header shows **Sin conexión** (pre-rebase builds: **Conectar**) within a few seconds. Plug in, reconnect, upload again: it works. |
 | Cancel (C3 only) | Press **Cancelar** while "Escribiendo tu programa…" is showing | "Cancelaste la subida…". The port comes back (**Conectada**). Uploading again works. The NANO has no Cancel button (avrgirl cannot stop midway). |
 
 If the C3 never syncs ("…mantén apretado BOOT…"), do exactly what the message says: hold BOOT,
@@ -76,6 +76,6 @@ needed: a SuperMini on native USB should normally reset into the bootloader by i
 
 ## Also note in the PR
 
-- Whether the C3 serial output (`hola`) is readable right after the upload (the port reopens at
-  115200; the serial monitor itself is B9).
+- Whether the serial monitor (B9) shows `hola` right after the upload: the monitor is muted
+  during the flash and the port reopens at the monitor's baud (115200 unless changed).
 - Chrome version and OS.

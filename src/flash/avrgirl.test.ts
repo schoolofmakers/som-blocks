@@ -5,7 +5,7 @@ import type { AvrCompileResult } from '../compile/types';
 import { FakeSerialPort, fakeSerial, installSerial, type FakeSerial } from '../test/fake-serial';
 import { fakeTransport } from '../test/fake-transport';
 import type { SerialLike } from '../transport/web-serial';
-import { avrgirlError, avrgirlFlasher, lendPort } from './avrgirl';
+import { avrgirlError, avrgirlFlasher, lendPort, waitForRelease } from './avrgirl';
 import type { FlashProgress } from './types';
 
 // avrgirl-arduino's browser bundle is mocked: the mock records what the flasher hands it and
@@ -152,6 +152,26 @@ describe('avrgirlError', () => {
     expect(code('Firmware on the device does not match local data', 'write')).toBe('verify-failed');
     expect(code('receiveData timeout after 400ms')).toBe('sync-failed');
     expect(code('receiveData timeout after 400ms', 'write')).toBe('write-failed');
+  });
+});
+
+describe('waitForRelease', () => {
+  it("waits until avrgirl's un-awaited close has let go of the port", async () => {
+    const port = new FakeSerialPort();
+    await port.open({ baudRate: 57600 });
+    setTimeout(() => void port.close(), 30);
+    await waitForRelease(port, 1_000, 5);
+    expect(port.readable).toBeNull();
+    expect(port.writable).toBeNull();
+  });
+
+  it('gives up after the timeout when the port stays held', async () => {
+    const port = new FakeSerialPort();
+    await port.open({ baudRate: 57600 });
+    const started = Date.now();
+    await waitForRelease(port, 40, 5);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(35);
+    expect(port.readable).not.toBeNull();
   });
 });
 
