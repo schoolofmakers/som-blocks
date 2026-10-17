@@ -97,6 +97,27 @@ export async function reopenTransport(
   return transport.isOpen;
 }
 
+/**
+ * Never leave the port closed behind the connect screen's back. If the transport store still
+ * owns this transport, reopen it, or tell the store it is gone so the header shows "Conectar"
+ * again. If the student disconnected (or reconnected) meanwhile, the store forgot it: keep it
+ * closed so it does not hold the USB port.
+ */
+async function giveBack(transport: Transport, log: (line: string) => void): Promise<void> {
+  const owned = () => useTransportStore.getState().transport === transport;
+  if (!owned()) {
+    await transport.close();
+    return;
+  }
+  if (!(await reopenTransport(transport))) {
+    log('port did not reopen after the upload; connect again');
+    if (owned()) await useTransportStore.getState().disconnect();
+    return;
+  }
+  // Ownership can also change during the reopen retries.
+  if (!owned()) await transport.close();
+}
+
 let controller: AbortController | null = null;
 
 export const useFlashStore = create<FlashState>()((set, get) => {
@@ -129,7 +150,7 @@ export const useFlashStore = create<FlashState>()((set, get) => {
 
     upload: async ({ code, boardId }) => {
       const { status } = get();
-      if (status === 'compiling' || status === 'flashing') return;
+      if (status === 'compiling' || status === 'flashing' || get().isFlashing) return;
       set({ status: 'idle', phase: null, percent: 0, log: [], error: null });
       const board = getBoard(boardId);
 
@@ -162,6 +183,9 @@ export const useFlashStore = create<FlashState>()((set, get) => {
         phase: 'connect',
         percent: 0,
       });
+      // The outcome is published only after the port is back, so the button (and a second
+      // upload()) stay locked through the reopen retries.
+      let failure: UploadError | null = null;
       try {
         // Release the port before the flasher takes it (the flashers close it too; it is
         // idempotent). Readers like the serial monitor see `isFlashing` and stay away.
@@ -171,25 +195,19 @@ export const useFlashStore = create<FlashState>()((set, get) => {
           onLog: appendLog,
           signal: mine.signal,
         });
-        set({ status: 'done', phase: 'done', percent: 100 });
       } catch (error) {
         const flashError =
           error instanceof FlashError ? error : new FlashError('write-failed', errorText(error));
-        fail({
+        failure = {
           key: uploadErrorKey(flashError.code, board),
           detail: flashError.detail ?? flashError.message,
-        });
+        };
       } finally {
         if (controller === mine) controller = null;
         set({ canCancel: false });
-        // Never leave the port closed behind the connect screen's back: reopen it, or tell the
-        // transport store it is gone so the header shows "Conectar" again.
-        if (!(await reopenTransport(transport))) {
-          appendLog('port did not reopen after the upload; connect again');
-          if (useTransportStore.getState().transport === transport) {
-            await useTransportStore.getState().disconnect();
-          }
-        }
+        await giveBack(transport, appendLog);
+        if (failure) fail(failure);
+        else set({ status: 'done', phase: 'done', percent: 100 });
         set({ isFlashing: false });
       }
     },
@@ -198,4 +216,14 @@ export const useFlashStore = create<FlashState>()((set, get) => {
       controller?.abort();
     },
   };
+});
+
+// A compile the student starts by hand begins a new program: the last upload's output and
+// result no longer describe it, so they go (the log panel would otherwise show old write lines
+// after the new compiler output). A compile started by upload() itself keeps its own state.
+useCompileStore.subscribe((state, previous) => {
+  if (state.status !== 'compiling' || previous.status === 'compiling') return;
+  const flash = useFlashStore.getState();
+  if (flash.isFlashing || flash.status === 'compiling') return;
+  useFlashStore.setState({ status: 'idle', phase: null, percent: 0, log: [], error: null });
 });

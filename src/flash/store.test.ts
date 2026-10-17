@@ -124,6 +124,48 @@ describe('flash store upload()', () => {
     expect(useFlashStore.getState().log.at(-1)).toMatch(/did not reopen/);
   });
 
+  it('stays locked until the port is back: a second click during the reopen is ignored', async () => {
+    vi.useFakeTimers();
+    transport.open.mockRejectedValueOnce(new Error('busy'));
+    const first = useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
+    await vi.waitFor(() => expect(transport.open).toHaveBeenCalledTimes(1));
+    // Flash finished, first reopen failed, waiting before the retry.
+    expect(useFlashStore.getState()).toMatchObject({ status: 'flashing', isFlashing: true });
+    await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
+    await vi.runAllTimersAsync();
+    await first;
+    expect(h.flash).toHaveBeenCalledTimes(1);
+    expect(useFlashStore.getState()).toMatchObject({ status: 'done', isFlashing: false });
+  });
+
+  it('a disconnect during the upload is respected: the forgotten port stays closed', async () => {
+    h.flash.mockImplementation(async () => {
+      await useTransportStore.getState().disconnect();
+    });
+    await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
+    expect(transport.open).not.toHaveBeenCalled();
+    expect(transport.isOpen).toBe(false);
+    expect(useFlashStore.getState().isFlashing).toBe(false);
+  });
+
+  it('a port reconnected elsewhere while reopening is closed again', async () => {
+    transport.open.mockImplementation(async () => {
+      transport.isOpen = true;
+      useTransportStore.setState({ transport: fakeTransport() });
+    });
+    await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
+    expect(transport.open).toHaveBeenCalledTimes(1);
+    expect(transport.events.at(-1)).toBe('close');
+    expect(transport.isOpen).toBe(false);
+  });
+
+  it('a compile started by hand clears the previous upload output', async () => {
+    await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
+    expect(useFlashStore.getState().log).not.toEqual([]);
+    useCompileStore.setState({ status: 'compiling' });
+    expect(useFlashStore.getState()).toMatchObject({ status: 'idle', log: [], error: null });
+  });
+
   it('recompiles first when the sketch changed since the last compile', async () => {
     const run = vi.fn(async (req: CompileRequest) => {
       useCompileStore.setState({ status: 'ok', result: AVR, request: req });
