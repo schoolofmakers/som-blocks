@@ -61,6 +61,9 @@ flash complete.
 ```
 
 avrgirl gives no byte progress: the bar sits at 50 % while it writes, which is expected.
+When the NANO answers the first sync late (the old bootloader often does), one extra line
+`drained 2 stale byte(s) after sync` appears before `flashing, please wait...`; that is the
+avrdude-style drain working, not an error.
 
 ## Failure cases (each board)
 

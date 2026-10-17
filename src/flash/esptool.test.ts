@@ -21,6 +21,9 @@ const h = vi.hoisted(() => {
     bootOffset: 0 as number | undefined,
     loaders: [] as Options[],
     disconnects: 0,
+    /** Delay of esptool-js's Transport.disconnect() (the raw port's close). */
+    disconnectDelayMs: 0,
+    disconnectedAt: 0,
     main: vi.fn<(options: Options) => Promise<string>>(),
     writeFlash: vi.fn<(options: WriteOptions) => Promise<void>>(),
     after: vi.fn<(mode: string) => Promise<void>>(),
@@ -32,6 +35,8 @@ vi.mock('esptool-js', () => {
   class UnexpectedChipMagicError extends Error {}
   class Transport {
     async disconnect() {
+      if (h.disconnectDelayMs) await new Promise((r) => setTimeout(r, h.disconnectDelayMs));
+      h.disconnectedAt = performance.now();
       h.disconnects += 1;
     }
   }
@@ -191,6 +196,8 @@ describe('esptoolFlasher.flash', () => {
     h.bootOffset = 0;
     h.loaders.length = 0;
     h.disconnects = 0;
+    h.disconnectDelayMs = 0;
+    h.disconnectedAt = 0;
     h.main.mockReset().mockImplementation(async ({ terminal }) => {
       terminal.writeLine('Chip is ESP32-C3 (QFN32) (revision v0.4)');
       return 'ESP32-C3';
@@ -309,6 +316,15 @@ describe('esptoolFlasher.flash', () => {
       ),
     ).rejects.toMatchObject({ code: 'unsupported-board' });
     expect(transport.close).not.toHaveBeenCalled();
+  });
+
+  it('awaits the raw port close (esptool-js disconnect) before handing the port back', async () => {
+    h.disconnectDelayMs = 200;
+    await run().promise;
+    const returnedAt = performance.now();
+    expect(h.disconnects).toBe(1);
+    expect(h.disconnectedAt).toBeGreaterThan(0);
+    expect(returnedAt).toBeGreaterThanOrEqual(h.disconnectedAt);
   });
 
   it('a transport without a native port is no-port', async () => {
