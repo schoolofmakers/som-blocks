@@ -132,6 +132,66 @@ describe('transport store', () => {
     expect(port.closeCalls).toBe(1);
   });
 
+  it('reopen closes and reopens the same port at the new baud, keeping its listeners', async () => {
+    await useTransportStore.getState().connect('uno');
+    const transport = useTransportStore.getState().transport!;
+    const chunks: number[][] = [];
+    transport.onData((chunk) => chunks.push([...chunk]));
+    await useTransportStore.getState().reopen(9600);
+    expect(port.baudRate).toBe(9600);
+    expect(port.closeCalls).toBe(1);
+    expect(useTransportStore.getState()).toMatchObject({
+      status: 'connected',
+      transport,
+      baudRate: 9600,
+    });
+    port.push([0x6f, 0x6b]);
+    await flush();
+    expect(chunks).toEqual([[0x6f, 0x6b]]);
+  });
+
+  it('a port that will not reopen ends the connection with the error', async () => {
+    await useTransportStore.getState().connect('uno');
+    port.openError = new DOMException('Failed to open serial port.', 'NetworkError');
+    await useTransportStore.getState().reopen(9600);
+    expect(useTransportStore.getState()).toMatchObject({
+      status: 'error',
+      error: { key: 'UI_CONNECT_ERROR_OPEN_FAILED', detail: 'Failed to open serial port.' },
+      transport: null,
+    });
+  });
+
+  it('disconnect and reconnect during a reopen wait for it, then the same port opens', async () => {
+    await useTransportStore.getState().connect('uno');
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const open = port.open.bind(port);
+    port.open = async (options) => {
+      await gate;
+      return open(options);
+    };
+    const reopening = useTransportStore.getState().reopen(9600);
+    await flush();
+    let disconnected = false;
+    const disconnecting = useTransportStore
+      .getState()
+      .disconnect()
+      .then(() => (disconnected = true));
+    await flush();
+    expect(disconnected).toBe(false); // still waiting for the reopen
+    const reconnecting = useTransportStore.getState().connect('uno', { port });
+    release();
+    await Promise.all([reopening, disconnecting, reconnecting]);
+    port.open = open;
+    expect(useTransportStore.getState()).toMatchObject({ status: 'connected', error: null });
+    expect(port.baudRate).toBe(DEFAULT_BAUD_RATE);
+  });
+
+  it('reopen without a connection does nothing', async () => {
+    await useTransportStore.getState().reopen(9600);
+    expect(useTransportStore.getState().status).toBe('disconnected');
+  });
+
   it('ignores a second connect while one is in flight', async () => {
     const first = useTransportStore.getState().connect('uno');
     await useTransportStore.getState().connect('uno');

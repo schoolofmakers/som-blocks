@@ -31,8 +31,15 @@ interface TransportState {
   portLabel: string | null;
   error: ConnectionError | null;
   transport: Transport | null;
+  /** Baud the open transport runs at (DEFAULT_BAUD_RATE right after connect). */
+  baudRate: number;
   connect: (boardId: string, options?: ConnectOptions) => Promise<void>;
   disconnect: () => Promise<void>;
+  /**
+   * Closes and reopens the open transport at another baud (the serial monitor's baud picker).
+   * A port that will not reopen ends the connection with an error, like a failed connect.
+   */
+  reopen: (baudRate: number) => Promise<void>;
 }
 
 const ERROR_KEYS: Record<TransportErrorCode, MessageKey> = {
@@ -59,12 +66,17 @@ let attempt = 0;
 // The close started by the last disconnect(): the next connect waits for it, so reopening the
 // same (remembered) port never races the old connection that still holds it.
 let pendingClose: Promise<void> = Promise.resolve();
+// The last reopen() (baud change), including the cleanup when it lost a race. While its
+// open() is pending the transport reads as closed, so disconnect()/connect() must wait for the
+// whole reopen, or a reconnect to the same port could try to open it while the reopen holds it.
+let pendingReopen: Promise<void> = Promise.resolve();
 
 export const useTransportStore = create<TransportState>()((set, get) => ({
   status: 'disconnected',
   portLabel: null,
   error: null,
   transport: null,
+  baudRate: DEFAULT_BAUD_RATE,
 
   connect: async (boardId, options = {}) => {
     if (get().status === 'connecting') return;
@@ -81,6 +93,7 @@ export const useTransportStore = create<TransportState>()((set, get) => ({
     try {
       const port = await pendingPort;
       await pendingClose;
+      await pendingReopen;
       // Reconnecting (e.g. to a remembered port) replaces any open connection.
       if (previous) await previous.close();
       transport = new WebSerialTransport(port);
@@ -117,14 +130,48 @@ export const useTransportStore = create<TransportState>()((set, get) => ({
       transport: opened,
       portLabel: portLabel(opened.nativePort.getInfo(), boardId),
       error: null,
+      baudRate: DEFAULT_BAUD_RATE,
     });
+  },
+
+  reopen: (baudRate) => {
+    const { transport, status } = get();
+    if (!transport || status !== 'connected') return Promise.resolve();
+    const mine = ++attempt;
+    const run = async () => {
+      try {
+        await transport.close();
+        // A disconnect() or connect() ran meanwhile: leave the port closed, it is not ours.
+        if (mine !== attempt) return;
+        await transport.open({ baudRate });
+      } catch (error) {
+        if (mine !== attempt) return;
+        await transport.close();
+        set({
+          status: 'error',
+          error: toConnectionError(error),
+          transport: null,
+          portLabel: null,
+        });
+        return;
+      }
+      if (mine !== attempt) {
+        await transport.close();
+        return;
+      }
+      set({ baudRate });
+    };
+    const done = pendingReopen.then(run);
+    pendingReopen = done.catch(() => undefined);
+    return done;
   },
 
   disconnect: async () => {
     attempt += 1;
     const { transport } = get();
     set({ status: 'disconnected', transport: null, portLabel: null, error: null });
-    const closing = transport?.close() ?? Promise.resolve();
+    // A reopen in flight sees the bumped attempt and closes the port itself; wait for it.
+    const closing = pendingReopen.then(() => transport?.close());
     pendingClose = closing;
     await closing;
   },

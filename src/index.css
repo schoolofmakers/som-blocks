@@ -20,6 +20,19 @@
   --som-code-number: #c2410c;
   --som-code-meta: #be185d;
   --som-code-title: #0e7490;
+  /* Plot series, fixed order (dataviz default categorical slots 1-6, validated against
+     --som-surface in both modes; light-mode relief = the legend shows label + value). */
+  --som-series-1: #2a78d6;
+  --som-series-2: #eb6834;
+  --som-series-3: #1baf7a;
+  --som-series-4: #eda100;
+  --som-series-5: #e87ba4;
+  --som-series-6: #008300;
+  /* The serial terminal is dark in both modes, on the dark tokens. */
+  --som-term-bg: #0b1120;
+  --som-term-fg: #e2e8f0;
+  --som-term-cursor: #22d3ee;
+  --som-term-selection: #334155;
   color-scheme: light;
 }
 
@@ -41,6 +54,12 @@
     --som-code-number: #fdba74;
     --som-code-meta: #f9a8d4;
     --som-code-title: #67e8f9;
+    --som-series-1: #3987e5;
+    --som-series-2: #d95926;
+    --som-series-3: #199e70;
+    --som-series-4: #c98500;
+    --som-series-5: #d55181;
+    --som-series-6: #008300;
     color-scheme: dark;
   }
 }
