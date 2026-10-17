@@ -32,10 +32,12 @@ interface UploadButtonProps {
   /** The sketch the generator produced; Upload recompiles first when it changed. */
   code: string;
   boardId: string;
+  /** "Sube por WiFi" project (compiled for OTA, SomLink linked). */
+  ota?: boolean;
 }
 
 /** Header Upload button, next to Compile: why it is disabled, progress, and errors. */
-export function UploadButton({ lang, code, boardId }: UploadButtonProps) {
+export function UploadButton({ lang, code, boardId, ota = false }: UploadButtonProps) {
   const reasonId = useId();
   const status = useFlashStore((s) => s.status);
   const phase = useFlashStore((s) => s.phase);
@@ -47,6 +49,7 @@ export function UploadButton({ lang, code, boardId }: UploadButtonProps) {
   const compiled = useCompileStore((s) => s.result !== null);
   const compiling = useCompileStore((s) => s.status === 'compiling');
   const connected = useTransportStore((s) => s.status === 'connected');
+  const overWifi = useTransportStore((s) => s.transport?.kind === 'relay');
 
   const support = useMemo(
     () =>
@@ -59,8 +62,14 @@ export function UploadButton({ lang, code, boardId }: UploadButtonProps) {
 
   const busy = status === 'compiling' || status === 'flashing';
   // In priority order: the browser first (nothing else helps), then compile, then connect.
-  const reason: MessageKey | null =
-    support.usb === 'no'
+  // Over WiFi the browser needs no USB, but the project must be built for it.
+  const reason: MessageKey | null = overWifi
+    ? !ota
+      ? 'UI_UPLOAD_REASON_OTA_FLAG'
+      : !compiled
+        ? 'UI_UPLOAD_REASON_COMPILE'
+        : null
+    : support.usb === 'no'
       ? (support.reasons[0] ?? 'UI_CONNECT_ERROR_UNSUPPORTED')
       : !compiled
         ? 'UI_UPLOAD_REASON_COMPILE'
@@ -75,7 +84,7 @@ export function UploadButton({ lang, code, boardId }: UploadButtonProps) {
         <button
           type="button"
           data-testid="upload-button"
-          onClick={() => void upload({ code, boardId })}
+          onClick={() => void upload({ code, boardId, ota })}
           disabled={disabled}
           aria-busy={busy}
           aria-describedby={reason && !busy ? reasonId : undefined}

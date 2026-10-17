@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { getBoard } from '../boards/registry';
 import type { MessageKey } from '../i18n/messages';
+import type { WifiPairing } from '../wifi/pairing';
 import { portLabel } from './port-label';
+import { RelayTransport, type Presence } from './relay';
 import { TransportError, type Transport, type TransportErrorCode } from './types';
 import {
   rememberedPorts,
@@ -45,7 +47,14 @@ interface TransportState {
    * as a new `SerialPort` a moment later.
    */
   reconnecting: boolean;
+  /** WiFi only: whether the paired board is on the relay ('unknown' until it answers). */
+  presence: Presence | null;
   connect: (boardId: string, options?: ConnectOptions) => Promise<void>;
+  /**
+   * Connects over WiFi through the relay with the project's pairing. Replaces any open
+   * connection, USB included, so there is only ever one board to upload to.
+   */
+  connectRelay: (pairing: WifiPairing) => Promise<void>;
   disconnect: () => Promise<void>;
   /**
    * Closes and reopens the open transport at another baud (the serial monitor's baud picker).
@@ -62,6 +71,8 @@ const ERROR_KEYS: Record<TransportErrorCode, MessageKey> = {
   'not-open': 'UI_CONNECT_ERROR_UNKNOWN',
   'write-failed': 'UI_CONNECT_ERROR_UNKNOWN',
   disconnected: 'UI_CONNECT_ERROR_DISCONNECTED',
+  unauthorized: 'UI_WIFI_ERROR_UNAUTHORIZED',
+  unreachable: 'UI_WIFI_ERROR_UNREACHABLE',
 };
 
 function toConnectionError(error: unknown): ConnectionError {
@@ -106,6 +117,36 @@ export const useTransportStore = create<TransportState>()((set, get) => {
       status: 'connected',
       transport: opened,
       portLabel: portLabel(opened.nativePort.getInfo(), connectedBoardId),
+      error: null,
+      baudRate,
+      reconnecting: false,
+      presence: null,
+    });
+  };
+
+  /** Publishes an open relay connection and follows the board's presence. */
+  const adoptRelay = (opened: RelayTransport, baudRate: number) => {
+    opened.onPresence((presence) => {
+      if (get().transport === opened) set({ presence });
+    });
+    // The relay stopped accepting the token: nothing to look for again, pair again.
+    opened.onDisconnect(() => {
+      if (get().transport !== opened) return;
+      attempt += 1;
+      set({
+        status: 'error',
+        transport: null,
+        portLabel: null,
+        presence: null,
+        error: { key: 'UI_WIFI_ERROR_UNAUTHORIZED' },
+        reconnecting: false,
+      });
+    });
+    set({
+      status: 'connected',
+      transport: opened,
+      portLabel: opened.pairing.name,
+      presence: opened.presence,
       error: null,
       baudRate,
       reconnecting: false,
@@ -177,6 +218,7 @@ export const useTransportStore = create<TransportState>()((set, get) => {
     transport: null,
     baudRate: DEFAULT_BAUD_RATE,
     reconnecting: false,
+    presence: null,
 
     connect: async (boardId, options = {}) => {
       if (get().status === 'connecting') return;
@@ -206,7 +248,7 @@ export const useTransportStore = create<TransportState>()((set, get) => {
         // Closing the chooser is a choice, not a failure: back to idle with a hint.
         const status =
           connectionError.key === 'UI_CONNECT_ERROR_CANCELLED' ? 'disconnected' : 'error';
-        set({ status, error: connectionError, transport: null, portLabel: null });
+        set({ status, error: connectionError, transport: null, portLabel: null, presence: null });
         return;
       }
 
@@ -219,10 +261,67 @@ export const useTransportStore = create<TransportState>()((set, get) => {
       adopt(transport, DEFAULT_BAUD_RATE);
     },
 
+    connectRelay: async (pairing) => {
+      if (get().status === 'connecting') return;
+      const mine = ++attempt;
+      const previous = get().transport;
+      set({ status: 'connecting', error: null, reconnecting: false });
+      const transport = new RelayTransport(pairing);
+      try {
+        await pendingClose;
+        await pendingReopen;
+        // One connection at a time: a USB port left open would still be the upload target.
+        if (previous) await previous.close();
+        await transport.open();
+      } catch (error) {
+        await previous?.close();
+        if (mine !== attempt) return;
+        set({
+          status: 'error',
+          error: toConnectionError(error),
+          transport: null,
+          portLabel: null,
+          presence: null,
+        });
+        return;
+      }
+      if (mine !== attempt) {
+        await transport.close();
+        return;
+      }
+      adoptRelay(transport, DEFAULT_BAUD_RATE);
+    },
+
     reopen: (baudRate) => {
       const { transport, status } = get();
       if (!transport || status !== 'connected') return Promise.resolve();
       const mine = ++attempt;
+      if (transport.kind === 'relay') {
+        // No baud over WiFi: only reopen the event stream if an upload closed it.
+        const run = async () => {
+          try {
+            if (!transport.isOpen) await transport.open({ baudRate });
+          } catch (error) {
+            if (mine !== attempt) return;
+            set({
+              status: 'error',
+              error: toConnectionError(error),
+              transport: null,
+              portLabel: null,
+              presence: null,
+            });
+            return;
+          }
+          if (mine !== attempt) {
+            await transport.close();
+            return;
+          }
+          set({ baudRate });
+        };
+        const done = pendingReopen.then(run);
+        pendingReopen = done.catch(() => undefined);
+        return done;
+      }
       const run = async () => {
         try {
           await transport.close();
@@ -257,6 +356,7 @@ export const useTransportStore = create<TransportState>()((set, get) => {
         portLabel: null,
         error: null,
         reconnecting: false,
+        presence: null,
       });
       // A reopen in flight sees the bumped attempt and closes the port itself; wait for it.
       const closing = pendingReopen.then(() => transport?.close());

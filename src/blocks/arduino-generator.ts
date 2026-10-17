@@ -71,6 +71,8 @@ export const RESERVED_WORDS: readonly string[] = [
   'somEspNowMe,somEspNowLock,somEspNowReady,somEspNowValue,somEspNowFrom,somEspNowCopy',
   'somEspNowOnRecv,somEspNowOnSent,somEspNowBegin,somEspNowSend,somEspNowNext',
   'SOM_ESPNOW_BROADCAST,SOM_ESPNOW_CHANNEL,SOM_ESPNOW_QUEUE_SIZE',
+  // SomLink (Track D), linked into "sube por WiFi" projects
+  'SomLink',
   // ESP-IDF ESP-NOW / WiFi API and the C string functions those helpers call
   'esp_now_init,esp_now_deinit,esp_now_add_peer,esp_now_send,esp_now_register_recv_cb',
   'esp_now_register_send_cb,esp_now_peer_info_t,esp_now_recv_info_t,esp_now_send_info_t',
@@ -103,12 +105,26 @@ export class ArduinoGenerator extends Blockly.CodeGenerator {
   private includes = new Set<string>();
   private definitions = new Map<string, string>();
   private setups = new Map<string, string>();
+  private somLink = false;
 
   constructor(name = 'Arduino') {
     super(name);
     this.INDENT = '  ';
     this.isInitialized = false;
     this.addReservedWords(RESERVED_WORDS.join(','));
+  }
+
+  /**
+   * Link SomLink (Track D) into the sketch: only for projects flagged "sube por WiFi" on a
+   * board that supports it (_config/architecture.md → "SomLink linking policy"). It keeps the
+   * board updatable over WiFi and mirrors `Serial` to the relay while the program runs.
+   */
+  setSomLink(enabled: boolean): void {
+    this.somLink = enabled;
+  }
+
+  get linksSomLink(): boolean {
+    return this.somLink;
   }
 
   /** Add an `#include` (deduplicated). See {@link toIncludeLine} for accepted forms. */
@@ -132,6 +148,12 @@ export class ArduinoGenerator extends Blockly.CodeGenerator {
     this.includes = new Set();
     this.definitions = new Map();
     this.setups = new Map();
+    if (this.somLink) {
+      // First include and first setup line: the board is reachable over WiFi before any
+      // student code runs (even code that blocks in setup).
+      this.addInclude('SomLink.h');
+      this.addSetup('som_link_begin', 'SomLink.begin();');
+    }
     if (this.nameDB_) {
       this.nameDB_.reset();
     } else {

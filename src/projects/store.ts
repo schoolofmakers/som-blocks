@@ -9,6 +9,8 @@ import {
   readProjectFile,
   type ImportErrorCode,
 } from './archive';
+import { isOtaProject } from '../wifi/ota';
+import type { WifiPairing } from '../wifi/pairing';
 import { MemoryProjectRepo, openProjectRepo, type ProjectRepo } from './db';
 import { PROJECT_SCHEMA_VERSION, toSummary, type Project, type ProjectSummary } from './types';
 
@@ -22,7 +24,8 @@ export type ProjectNotice =
   | { kind: 'unknown-board'; name: string; boardId: string }
   | { kind: 'import-failed'; code: ImportErrorCode }
   | { kind: 'save-failed' }
-  | { kind: 'export-failed' };
+  | { kind: 'export-failed' }
+  | { kind: 'paired'; name: string };
 
 /** What the editor must load: a new `key` means "replace the workspace with `state`". */
 export interface EditorLoad {
@@ -58,6 +61,13 @@ export interface ProjectsState {
   dismissNotice: () => void;
   /** Name for projects created from now on (the UI language's "My project"). */
   setDefaultName: (name: string) => void;
+  /**
+   * Pairs the open project with a board (or forgets it with `null`). `notify` shows the
+   * "board paired" notice.
+   */
+  setPairing: (pairing: WifiPairing | null, options?: { notify?: boolean }) => Promise<void>;
+  /** The "sube por WiFi" flag of the open project. */
+  setUploadOverWifi: (enabled: boolean) => Promise<void>;
 }
 
 // Module state that never needs to re-render anything.
@@ -358,7 +368,9 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
       try {
         const project = await projectById(id);
         if (!project) throw new Error(`No project ${id}`);
-        const code = generateSketch(project.workspace, project.boardId);
+        const code = generateSketch(project.workspace, project.boardId, {
+          somLink: isOtaProject(project),
+        });
         const { filename, bytes } = buildProjectZip(project, code);
         downloadFile(bytes, filename);
       } catch {
@@ -408,6 +420,31 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
 
     setDefaultName: (name) => {
       if (name) defaultName = name;
+    },
+
+    setPairing: async (pairing, { notify = false } = {}) => {
+      const { current } = get();
+      if (!current) return;
+      const updated: Project = { ...current, updatedAt: Date.now() };
+      if (pairing) updated.wifi = pairing;
+      else delete updated.wifi;
+      clearAutosave();
+      dirty = false;
+      set({ current: updated });
+      const stored = await write(updated);
+      if (stored && notify && pairing) set({ notice: { kind: 'paired', name: pairing.name } });
+    },
+
+    setUploadOverWifi: async (enabled) => {
+      const { current } = get();
+      if (!current || Boolean(current.uploadOverWifi) === enabled) return;
+      const updated: Project = { ...current, updatedAt: Date.now() };
+      if (enabled) updated.uploadOverWifi = true;
+      else delete updated.uploadOverWifi;
+      clearAutosave();
+      dirty = false;
+      set({ current: updated });
+      await write(updated);
     },
   };
 });

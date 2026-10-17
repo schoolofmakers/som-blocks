@@ -15,20 +15,31 @@ import { ProjectNotice, ProjectsMenu } from './projects/ProjectsMenu';
 import { useProjectsStore } from './projects/store';
 import { SerialPanel } from './serial/SerialPanel';
 import { ConnectButton } from './transport/ConnectScreen';
+import { isOtaProject } from './wifi/ota';
+import { attachPairing } from './wifi/pair-link';
+import type { PairingParams } from './wifi/pairing';
 
 interface AppProps {
   /** Language at startup (src/main.tsx resolves it); the header switch changes it live. */
   lang?: Lang;
   toolboxProfile?: ToolboxProfile;
+  /** A pairing link the page was opened with (src/main.tsx already removed it from the URL). */
+  pairing?: PairingParams | null;
 }
 
-export function App({ lang: initialLang = DEFAULT_LANG, toolboxProfile = 'starter' }: AppProps) {
+export function App({
+  lang: initialLang = DEFAULT_LANG,
+  toolboxProfile = 'starter',
+  pairing = null,
+}: AppProps) {
   const [lang, setLang] = useState(initialLang);
   const [code, setCode] = useState('');
   const boardId = useBoardStore((state) => state.boardId);
   const editorLoad = useProjectsStore((state) => state.editorLoad);
   const saveWorkspace = useProjectsStore((state) => state.saveWorkspace);
   const workspaceLoadFailed = useProjectsStore((state) => state.workspaceLoadFailed);
+  // "Sube por WiFi" on a board that supports it: OTA compile options + SomLink.
+  const ota = useProjectsStore((state) => isOtaProject(state.current));
 
   // New projects are named in the current language, including after a switch. Then open the
   // last project (or create the first one); init() only loads once per page.
@@ -37,6 +48,11 @@ export function App({ lang: initialLang = DEFAULT_LANG, toolboxProfile = 'starte
     projects.setDefaultName(t('UI_PROJECT_DEFAULT_NAME', lang));
     void projects.init();
   }, [lang]);
+
+  // Pair the open project with the board from a `/pair` link, once the projects are loaded.
+  useEffect(() => {
+    if (pairing) void attachPairing(pairing);
+  }, [pairing]);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -61,8 +77,8 @@ export function App({ lang: initialLang = DEFAULT_LANG, toolboxProfile = 'starte
           <ProjectsMenu lang={lang} />
           <BoardPicker lang={lang} />
           <ServerSettings lang={lang} />
-          <CompileButton lang={lang} code={code} boardId={boardId} />
-          <UploadButton lang={lang} code={code} boardId={boardId} />
+          <CompileButton lang={lang} code={code} boardId={boardId} ota={ota} />
+          <UploadButton lang={lang} code={code} boardId={boardId} ota={ota} />
           <ConnectButton lang={lang} />
           <LanguageSwitch lang={lang} onChange={changeLang} />
         </div>
@@ -77,6 +93,7 @@ export function App({ lang: initialLang = DEFAULT_LANG, toolboxProfile = 'starte
             toolboxProfile={toolboxProfile}
             onCodeChange={setCode}
             boardId={boardId}
+            somLink={ota}
             load={editorLoad}
             onWorkspaceChange={saveWorkspace}
             onLoadError={() => void workspaceLoadFailed()}

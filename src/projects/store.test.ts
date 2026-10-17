@@ -4,7 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_BOARD_ID } from '../boards/registry';
 import { useBoardStore } from '../boards/store';
 import { buildProjectZip, generateSketch } from './archive';
-import { MemoryProjectRepo, openProjectRepo, SomBlocksDb, type ProjectRepo } from './db';
+import {
+  MemoryProjectRepo,
+  migrateProject,
+  openProjectRepo,
+  SomBlocksDb,
+  type ProjectRepo,
+} from './db';
 import {
   AUTOSAVE_DELAY_MS,
   CURRENT_PROJECT_STORAGE_KEY,
@@ -395,6 +401,61 @@ describe('projects store', () => {
     await state().importFile(new File(['not json'], 'x.json'));
     expect(state().notice).toEqual({ kind: 'import-failed', code: 'unreadable' });
     expect(state().current?.id).toBe(before);
+  });
+});
+
+describe('projects store: WiFi pairing and "sube por WiFi"', () => {
+  const PAIRING = {
+    deviceId: 'fa4e00c3c3c3',
+    token: 'ab'.repeat(32),
+    name: 'Azul',
+    relayUrl: 'http://relay.test',
+  };
+
+  beforeEach(async () => {
+    window.localStorage.clear();
+    useBoardStore.setState({ boardId: DEFAULT_BOARD_ID });
+    resetProjectsStore();
+    await state().init({ repo: await freshRepo() });
+  });
+
+  it('stores the pairing in the project record (IndexedDB), not in localStorage', async () => {
+    const id = state().current!.id;
+    await state().setPairing(PAIRING, { notify: true });
+    expect(state().current?.wifi).toEqual(PAIRING);
+    expect(state().notice).toEqual({ kind: 'paired', name: 'Azul' });
+    expect((await stored(id))?.wifi).toEqual(PAIRING);
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i)!;
+      expect(window.localStorage.getItem(key)).not.toContain(PAIRING.token);
+    }
+    await reload();
+    expect(state().current?.wifi).toEqual(PAIRING);
+    await state().setPairing(null);
+    expect(state().current?.wifi).toBeUndefined();
+    expect((await stored(id))?.wifi).toBeUndefined();
+  });
+
+  it('keeps the flag per project and never copies the pairing into a duplicate', async () => {
+    const id = state().current!.id;
+    await state().setPairing(PAIRING);
+    await state().setUploadOverWifi(true);
+    expect((await stored(id))?.uploadOverWifi).toBe(true);
+    await state().duplicate(id);
+    expect(state().current?.id).not.toBe(id);
+    expect(state().current?.wifi).toBeUndefined();
+    expect(state().current?.uploadOverWifi).toBeUndefined();
+    await state().open(id);
+    await state().setUploadOverWifi(false);
+    expect((await stored(id))?.uploadOverWifi).toBeUndefined();
+  });
+
+  it('drops a malformed stored pairing on read', () => {
+    expect(migrateProject(record({ wifi: { ...PAIRING, token: 'x' } }))?.wifi).toBeUndefined();
+    expect(migrateProject(record({ wifi: PAIRING, uploadOverWifi: true }))).toMatchObject({
+      wifi: PAIRING,
+      uploadOverWifi: true,
+    });
   });
 });
 

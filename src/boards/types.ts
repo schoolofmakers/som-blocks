@@ -34,6 +34,11 @@ export interface BoardDefinition {
   fqbn: string;
   /** Fixed board options appended to the FQBN by `fullFqbn` (e.g. C3 `CDCOnBoot: 'cdc'`). */
   options: Readonly<Record<string, string>>;
+  /**
+   * Extra FQBN options for projects flagged "sube por WiFi" (Track D). Present only on boards
+   * that can be updated over the air; its presence is what makes the flag available.
+   */
+  otaOptions?: Readonly<Record<string, string>>;
   chip: Chip;
   upload: UploadProfile;
   /** Web Serial `requestPort({ filters })` entries. */
@@ -42,12 +47,23 @@ export interface BoardDefinition {
   notes?: string;
 }
 
+/** Whether a project on this board can be flagged "sube por WiFi". */
+export function supportsOta(board: Pick<BoardDefinition, 'otaOptions'>): boolean {
+  return board.otaOptions !== undefined;
+}
+
 /**
  * The FQBN arduino-cli compiles with: `vendor:arch:board[:opt=val[,opt=val]...]`.
  * Options go in a single fourth colon-separated segment, comma-separated; arduino-cli
- * rejects an FQBN with more than four colon parts (pkg/fqbn/fqbn.go).
+ * rejects an FQBN with more than four colon parts (pkg/fqbn/fqbn.go). With `ota`, the
+ * board's `otaOptions` are added (and win over a fixed option of the same name).
  */
-export function fullFqbn(board: Pick<BoardDefinition, 'fqbn' | 'options'>): string {
-  const options = Object.entries(board.options).map(([key, value]) => `${key}=${value}`);
+export function fullFqbn(
+  board: Pick<BoardDefinition, 'fqbn' | 'options' | 'otaOptions'>,
+  { ota = false }: { ota?: boolean } = {},
+): string {
+  const merged =
+    ota && board.otaOptions ? { ...board.options, ...board.otaOptions } : board.options;
+  const options = Object.entries(merged).map(([key, value]) => `${key}=${value}`);
   return options.length === 0 ? board.fqbn : `${board.fqbn}:${options.join(',')}`;
 }

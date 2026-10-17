@@ -46,6 +46,6 @@ describe('detectSupport', () => {
     ],
     ['unknown browser', 'SomethingElse/1.0', false, 'no', ['UI_SUPPORT_REASON_NO_SERIAL']],
   ] as const)('%s', (_name, userAgent, hasSerial, usb, reasons) => {
-    expect(detectSupport(userAgent, hasSerial)).toEqual({ usb, wifi: 'coming', reasons });
+    expect(detectSupport(userAgent, hasSerial)).toEqual({ usb, wifi: 'yes', reasons });
   });
 });

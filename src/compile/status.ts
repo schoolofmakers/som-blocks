@@ -15,7 +15,19 @@ function seconds(ms: number | null): string {
   return ((ms ?? 0) / 1000).toFixed(1);
 }
 
-type StatusInput = Pick<CompileState, 'status' | 'result' | 'error' | 'durationMs' | 'requestUrl'>;
+type StatusInput = Pick<CompileState, 'status' | 'result' | 'error' | 'durationMs' | 'requestUrl'> &
+  Partial<Pick<CompileState, 'ota'>>;
+
+/**
+ * arduino-cli's size check when the program does not fit the app partition ("Sketch too
+ * big; …" after "text section exceeds available space in board").
+ */
+const TOO_BIG = /Sketch too big|section exceeds available space/i;
+
+/** The compile failed because the sketch does not fit the board's app slot. */
+export function isTooBig(log: string): boolean {
+  return TOO_BIG.test(log);
+}
 
 /** The one-line status above the log, in the student's language. */
 export function statusLine(state: StatusInput, lang: Lang): string {
@@ -32,6 +44,11 @@ export function statusLine(state: StatusInput, lang: Lang): string {
         });
   }
   if (status === 'error' && error) {
+    // Over WiFi the program must fit one OTA slot: say so in words; the log keeps the sizes.
+    if (state.ota && isTooBig(error.log)) {
+      const after = format(t('UI_COMPILE_ERR_DURATION', lang), { seconds: seconds(durationMs) });
+      return `${t('UI_COMPILE_ERR_TOO_BIG_WIFI', lang)} (${after})`;
+    }
     const message = format(t(ERROR_KEYS[error.cause], lang), {
       message: error.message,
       seconds: Math.round(DEFAULT_COMPILE_TIMEOUT_MS / 1000),

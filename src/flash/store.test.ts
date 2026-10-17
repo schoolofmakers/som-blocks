@@ -96,6 +96,35 @@ describe('flash store upload()', () => {
     expect(useTransportStore.getState()).toMatchObject({ status: 'connected', transport });
   });
 
+  it('over WiFi refuses a project that is not flagged "sube por WiFi" (no SomLink)', async () => {
+    useTransportStore.setState({ transport: Object.assign(fakeTransport(), { kind: 'relay' }) });
+    await useFlashStore.getState().upload({ code: CODE, boardId: 'esp32c3-supermini' });
+    expect(h.flash).not.toHaveBeenCalled();
+    expect(useFlashStore.getState().error?.key).toBe('UI_UPLOAD_REASON_OTA_FLAG');
+  });
+
+  it('a "sube por WiFi" upload compiles with the board OTA options first', async () => {
+    const relay = Object.assign(fakeTransport(), { kind: 'relay' as const });
+    useTransportStore.setState({ transport: relay });
+    const ESP: CompileResult = { kind: 'esp', images: [], log: '' };
+    const run = vi.fn(async (req: CompileRequest) => {
+      useCompileStore.setState({ status: 'ok', result: ESP, request: req });
+    });
+    useCompileStore.setState({ run });
+    await useFlashStore.getState().upload({ code: CODE, boardId: 'esp32c3-supermini', ota: true });
+    expect(run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fqbn: 'esp32:esp32:esp32c3:CDCOnBoot=cdc,PartitionScheme=min_spiffs',
+      }),
+      { ota: true },
+    );
+    expect(h.flash).toHaveBeenCalledTimes(1);
+    expect(h.flash.mock.calls[0]?.[2]).toBe(relay);
+    expect(uploadErrorKey('ota-lost', getBoard('esp32c3-supermini'))).toBe(
+      'UI_UPLOAD_ERR_OTA_LOST',
+    );
+  });
+
   it('mutes the serial monitor before the port closes and unmutes after it reopens', async () => {
     const unsubscribe = useSerialStore.subscribe((state, previous) => {
       if (state.muted !== previous.muted) transport.events.push(`muted ${String(state.muted)}`);
@@ -273,7 +302,7 @@ describe('flash store upload()', () => {
     });
     useCompileStore.setState({ run });
     await useFlashStore.getState().upload({ code: `${CODE}// changed\n`, boardId: BOARD_ID });
-    expect(run).toHaveBeenCalledWith(request(`${CODE}// changed\n`));
+    expect(run).toHaveBeenCalledWith(request(`${CODE}// changed\n`), { ota: false });
     expect(h.flash).toHaveBeenCalledTimes(1);
     expect(useFlashStore.getState().status).toBe('done');
   });

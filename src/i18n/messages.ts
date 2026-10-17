@@ -35,6 +35,8 @@ const es = {
   UI_COMPILE_ERR_EMPTY:
     'El servidor respondió vacío. Inténtalo otra vez; si se repite, avísale a tu profe.',
   UI_COMPILE_ERR_DURATION: 'Falló después de {seconds} s',
+  UI_COMPILE_ERR_TOO_BIG_WIFI:
+    'Tu programa es demasiado grande para subir por WiFi. Hazlo más corto o desactiva «Subir por WiFi» y súbelo por cable.',
   UI_COPY_LOG: 'Copiar',
   UI_COPIED: 'Copiado',
   UI_SERVER_SETTINGS: 'Servidor',
@@ -54,7 +56,50 @@ const es = {
   UI_CONNECT_ROW_WIFI: 'WiFi',
   UI_CONNECT_USB_YES: 'Disponible',
   UI_CONNECT_USB_NO: 'No disponible',
-  UI_CONNECT_WIFI_COMING: 'Próximamente',
+  UI_CONNECT_STATUS_WIFI: 'Conectada por WiFi',
+  UI_CONNECT_WIFI_YES: 'Disponible',
+  UI_WIFI_TITLE: 'WiFi',
+  UI_WIFI_CONNECT: 'Conectar por WiFi',
+  UI_WIFI_PAIRED_WITH: 'Placa de este proyecto: {name}',
+  UI_WIFI_NOT_PAIRED:
+    'Este proyecto aún no tiene placa WiFi. Conecta una placa a WiFi para emparejarla.',
+  UI_WIFI_FORGET: 'Olvidar placa',
+  UI_WIFI_PROVISION_SERIAL: 'Conectar a WiFi por cable',
+  UI_WIFI_PROVISION_BLE: 'Conectar a WiFi por Bluetooth',
+  UI_WIFI_PROVISION_HINT:
+    'Por cable necesitas Chrome o Edge en un computador; por Bluetooth, Chrome en Android.',
+  UI_WIFI_NO_WIFI_BOARD: 'Esta placa no tiene WiFi. Usa el cable USB.',
+  UI_WIFI_ONLINE: 'La placa está conectada a WiFi.',
+  UI_WIFI_OFFLINE: 'La placa no está en WiFi. Enciéndela y espera unos segundos.',
+  UI_WIFI_CHECKING: 'Buscando la placa…',
+  UI_WIFI_ERROR_UNAUTHORIZED:
+    'La placa ya no reconoce este proyecto. Conéctala a WiFi otra vez para emparejarla.',
+  UI_WIFI_ERROR_UNREACHABLE: 'No se pudo llegar al servidor WiFi. Revisa tu internet.',
+  UI_PROVISION_TITLE_SERIAL: 'Conectar la placa a WiFi (por cable)',
+  UI_PROVISION_TITLE_BLE: 'Conectar la placa a WiFi (por Bluetooth)',
+  UI_PROVISION_HINT_SERIAL: 'Conecta la placa con el cable USB y pulsa Buscar la placa.',
+  UI_PROVISION_HINT_BLE: 'Enciende la placa cerca de este teléfono y pulsa Buscar la placa.',
+  UI_PROVISION_FIND: 'Buscar la placa',
+  UI_PROVISION_FINDING: 'Buscando la placa…',
+  UI_PROVISION_SSID: 'Nombre de la red WiFi',
+  UI_PROVISION_PASSWORD: 'Contraseña de la red',
+  UI_PROVISION_SUBMIT: 'Conectar a WiFi',
+  UI_PROVISION_AUTHORIZING: 'Aprieta el botón BOOT de la placa para dar permiso.',
+  UI_PROVISION_PROVISIONING: 'La placa se está conectando a la red…',
+  UI_PROVISION_PROVISIONED: '¡Conectada! Guardando la placa en tu proyecto…',
+  UI_PROVISION_DONE: 'Placa {name} conectada a WiFi y emparejada con este proyecto.',
+  UI_PROVISION_FINISH: 'Listo',
+  UI_PROVISION_RETRY: 'Intentar de nuevo',
+  UI_PROVISION_ERR_UNSUPPORTED: 'Este navegador no puede hacer esto. Usa Chrome.',
+  UI_PROVISION_ERR_CANCELLED: 'No elegiste ninguna placa.',
+  UI_PROVISION_ERR_NOT_IMPROV:
+    'La placa no respondió. Revisa que esté preparada para WiFi y vuelve a intentar.',
+  UI_PROVISION_ERR_WRONG_PASSWORD:
+    'La placa no pudo entrar a la red. Revisa el nombre y la contraseña.',
+  UI_PROVISION_ERR_NOT_AUTHORIZED: 'La placa no dio permiso. Aprieta BOOT cuando te lo pida.',
+  UI_PROVISION_ERR_TIMEOUT: 'La placa tardó demasiado. Acércala a la red y vuelve a intentar.',
+  UI_PROVISION_ERR_NO_URL: 'La placa no envió sus datos para emparejarla. Vuelve a intentar.',
+  UI_PROVISION_ERR_FAILED: 'Algo falló al conectar la placa a WiFi. Vuelve a intentar.',
   UI_CONNECT_USB_BUTTON: 'Conectar por USB',
   UI_CONNECT_ANY_PORT_HINT: '¿No aparece tu placa en la lista?',
   UI_CONNECT_ANY_PORT_BUTTON: 'Mostrar todos los puertos',
@@ -64,9 +109,9 @@ const es = {
   UI_CONNECT_UNKNOWN_PORT: 'puerto serie',
   UI_CONNECT_DISCONNECT: 'Desconectar',
   UI_SUPPORT_REASON_IOS:
-    'En iPhone y iPad ningún navegador puede usar USB. Pronto podrás subir programas por WiFi.',
+    'En iPhone y iPad ningún navegador puede usar USB. Usa una placa conectada a WiFi.',
   UI_SUPPORT_REASON_ANDROID:
-    'En Android el navegador no puede usar USB. Pronto podrás subir programas por WiFi.',
+    'En Android el navegador no puede usar USB. Usa una placa conectada a WiFi.',
   UI_SUPPORT_REASON_FIREFOX: 'Firefox no puede usar USB. Abre el editor en Chrome o Edge.',
   UI_SUPPORT_REASON_SAFARI: 'Safari no puede usar USB. Abre el editor en Chrome o Edge.',
   UI_SUPPORT_REASON_NO_SERIAL:
@@ -102,6 +147,8 @@ const es = {
   UI_PROJECT_IMPORT_NOT_PROJECT: 'Ese archivo no es un proyecto de SoM Blocks.',
   UI_PROJECT_SAVE_FAILED: 'No se pudo guardar. Exporta tu proyecto para no perderlo.',
   UI_PROJECT_EXPORT_FAILED: 'No se pudo exportar el proyecto.',
+  UI_PROJECT_PAIRED: 'Placa {name} emparejada con este proyecto.',
+  UI_PROJECT_UPLOAD_WIFI: 'Subir por WiFi',
   UI_DISMISS: 'Cerrar',
   UI_SERIAL_PANEL: 'Monitor serie',
   UI_SERIAL_TAB_MONITOR: 'Monitor',
@@ -161,6 +208,12 @@ const es = {
   UI_UPLOAD_ERR_UNSUPPORTED: 'Esta placa todavía no se puede programar desde aquí.',
   UI_UPLOAD_ERR_TRANSPORT:
     'Se perdió la conexión con la placa. Revisa el cable y vuelve a conectar.',
+  UI_UPLOAD_REASON_OTA_FLAG: 'Activa «Subir por WiFi» en el menú Proyectos para subir sin cable.',
+  UI_UPLOAD_ERR_OTA_FAILED: 'La placa no pudo instalar tu programa. Vuelve a pulsar Subir.',
+  UI_UPLOAD_ERR_OTA_LOST: 'La subida se perdió; vuelve a intentar.',
+  UI_UPLOAD_ERR_OTA_TIMEOUT:
+    'La placa no terminó a tiempo. Revisa que esté encendida y en WiFi, y vuelve a intentar.',
+  UI_UPLOAD_ERR_OTA_OFFLINE: 'La placa no está en WiFi. Enciéndela y vuelve a pulsar Subir.',
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -197,6 +250,8 @@ const en: Partial<Record<MessageKey, string>> = {
   UI_COMPILE_ERR_EMPTY:
     'The server sent an empty answer. Try again; if it keeps happening, tell your teacher.',
   UI_COMPILE_ERR_DURATION: 'Failed after {seconds} s',
+  UI_COMPILE_ERR_TOO_BIG_WIFI:
+    'Your program is too big to upload over WiFi. Make it shorter, or turn off «Upload over WiFi» and use the cable.',
   UI_COPY_LOG: 'Copy',
   UI_COPIED: 'Copied',
   UI_SERVER_SETTINGS: 'Server',
@@ -216,7 +271,49 @@ const en: Partial<Record<MessageKey, string>> = {
   UI_CONNECT_ROW_WIFI: 'WiFi',
   UI_CONNECT_USB_YES: 'Available',
   UI_CONNECT_USB_NO: 'Not available',
-  UI_CONNECT_WIFI_COMING: 'Coming soon',
+  UI_CONNECT_STATUS_WIFI: 'Connected over WiFi',
+  UI_CONNECT_WIFI_YES: 'Available',
+  UI_WIFI_TITLE: 'WiFi',
+  UI_WIFI_CONNECT: 'Connect over WiFi',
+  UI_WIFI_PAIRED_WITH: "This project's board: {name}",
+  UI_WIFI_NOT_PAIRED: 'This project has no WiFi board yet. Connect a board to WiFi to pair it.',
+  UI_WIFI_FORGET: 'Forget board',
+  UI_WIFI_PROVISION_SERIAL: 'Connect to WiFi with the cable',
+  UI_WIFI_PROVISION_BLE: 'Connect to WiFi with Bluetooth',
+  UI_WIFI_PROVISION_HINT:
+    'The cable needs Chrome or Edge on a computer; Bluetooth needs Chrome on Android.',
+  UI_WIFI_NO_WIFI_BOARD: 'This board has no WiFi. Use the USB cable.',
+  UI_WIFI_ONLINE: 'The board is on WiFi.',
+  UI_WIFI_OFFLINE: 'The board is not on WiFi. Turn it on and wait a few seconds.',
+  UI_WIFI_CHECKING: 'Looking for the board…',
+  UI_WIFI_ERROR_UNAUTHORIZED:
+    'The board no longer knows this project. Connect it to WiFi again to pair it.',
+  UI_WIFI_ERROR_UNREACHABLE: 'Could not reach the WiFi server. Check your internet.',
+  UI_PROVISION_TITLE_SERIAL: 'Connect the board to WiFi (cable)',
+  UI_PROVISION_TITLE_BLE: 'Connect the board to WiFi (Bluetooth)',
+  UI_PROVISION_HINT_SERIAL: 'Plug the board in with the USB cable and press Find the board.',
+  UI_PROVISION_HINT_BLE: 'Turn the board on near this phone and press Find the board.',
+  UI_PROVISION_FIND: 'Find the board',
+  UI_PROVISION_FINDING: 'Looking for the board…',
+  UI_PROVISION_SSID: 'WiFi network name',
+  UI_PROVISION_PASSWORD: 'Network password',
+  UI_PROVISION_SUBMIT: 'Connect to WiFi',
+  UI_PROVISION_AUTHORIZING: "Press the board's BOOT button to allow it.",
+  UI_PROVISION_PROVISIONING: 'The board is joining the network…',
+  UI_PROVISION_PROVISIONED: 'Connected! Saving the board in your project…',
+  UI_PROVISION_DONE: 'Board {name} is on WiFi and paired with this project.',
+  UI_PROVISION_FINISH: 'Done',
+  UI_PROVISION_RETRY: 'Try again',
+  UI_PROVISION_ERR_UNSUPPORTED: 'This browser cannot do this. Use Chrome.',
+  UI_PROVISION_ERR_CANCELLED: 'You did not choose a board.',
+  UI_PROVISION_ERR_NOT_IMPROV:
+    'The board did not answer. Check that it is prepared for WiFi and try again.',
+  UI_PROVISION_ERR_WRONG_PASSWORD:
+    'The board could not join the network. Check the name and the password.',
+  UI_PROVISION_ERR_NOT_AUTHORIZED: 'The board did not allow it. Press BOOT when asked.',
+  UI_PROVISION_ERR_TIMEOUT: 'The board took too long. Move it closer to the network and try again.',
+  UI_PROVISION_ERR_NO_URL: 'The board did not send its pairing data. Try again.',
+  UI_PROVISION_ERR_FAILED: 'Something went wrong connecting the board to WiFi. Try again.',
   UI_CONNECT_USB_BUTTON: 'Connect over USB',
   UI_CONNECT_ANY_PORT_HINT: 'Is your board missing from the list?',
   UI_CONNECT_ANY_PORT_BUTTON: 'Show all ports',
@@ -225,10 +322,8 @@ const en: Partial<Record<MessageKey, string>> = {
   UI_CONNECT_CONNECTED_TO: 'Connected to',
   UI_CONNECT_UNKNOWN_PORT: 'serial port',
   UI_CONNECT_DISCONNECT: 'Disconnect',
-  UI_SUPPORT_REASON_IOS:
-    'On iPhone and iPad no browser can use USB. Soon you will be able to upload over WiFi.',
-  UI_SUPPORT_REASON_ANDROID:
-    'On Android the browser cannot use USB. Soon you will be able to upload over WiFi.',
+  UI_SUPPORT_REASON_IOS: 'On iPhone and iPad no browser can use USB. Use a board that is on WiFi.',
+  UI_SUPPORT_REASON_ANDROID: 'On Android the browser cannot use USB. Use a board that is on WiFi.',
   UI_SUPPORT_REASON_FIREFOX: 'Firefox cannot use USB. Open the editor in Chrome or Edge.',
   UI_SUPPORT_REASON_SAFARI: 'Safari cannot use USB. Open the editor in Chrome or Edge.',
   UI_SUPPORT_REASON_NO_SERIAL:
@@ -265,6 +360,8 @@ const en: Partial<Record<MessageKey, string>> = {
   UI_PROJECT_IMPORT_NOT_PROJECT: "That file isn't a SoM Blocks project.",
   UI_PROJECT_SAVE_FAILED: 'Could not save. Export your project so you do not lose it.',
   UI_PROJECT_EXPORT_FAILED: 'Could not export the project.',
+  UI_PROJECT_PAIRED: 'Board {name} paired with this project.',
+  UI_PROJECT_UPLOAD_WIFI: 'Upload over WiFi',
   UI_DISMISS: 'Close',
   UI_SERIAL_PANEL: 'Serial monitor',
   UI_SERIAL_TAB_MONITOR: 'Monitor',
@@ -324,6 +421,13 @@ const en: Partial<Record<MessageKey, string>> = {
   UI_UPLOAD_ERR_UNSUPPORTED: 'This board cannot be programmed from here yet.',
   UI_UPLOAD_ERR_TRANSPORT:
     'The connection to the board was lost. Check the cable and connect again.',
+  UI_UPLOAD_REASON_OTA_FLAG:
+    'Turn on «Upload over WiFi» in the Projects menu to upload without a cable.',
+  UI_UPLOAD_ERR_OTA_FAILED: 'The board could not install your program. Press Upload again.',
+  UI_UPLOAD_ERR_OTA_LOST: 'The upload was lost; try again.',
+  UI_UPLOAD_ERR_OTA_TIMEOUT:
+    'The board did not finish in time. Check that it is on and on WiFi, and try again.',
+  UI_UPLOAD_ERR_OTA_OFFLINE: 'The board is not on WiFi. Turn it on and press Upload again.',
 };
 
 /**

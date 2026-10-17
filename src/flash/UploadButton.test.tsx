@@ -63,7 +63,7 @@ describe('UploadButton', () => {
     expect(button()).toBeEnabled();
     expect(screen.queryByTestId('upload-reason')).toBeNull();
     fireEvent.click(button());
-    expect(upload).toHaveBeenCalledWith({ code: CODE, boardId: 'uno' });
+    expect(upload).toHaveBeenCalledWith({ code: CODE, boardId: 'uno', ota: false });
   });
 
   it('shows phase, progress and Cancel while flashing, and the error message after', () => {

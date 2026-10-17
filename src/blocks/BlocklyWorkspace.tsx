@@ -43,6 +43,8 @@ interface BlocklyWorkspaceProps {
   onCodeChange?: (code: string) => void;
   /** Selected board id; a change regenerates the code (pin blocks read the board's pins). */
   boardId?: string;
+  /** Link SomLink into the sketch ("sube por WiFi" project on a board that supports it). */
+  somLink?: boolean;
   /** Workspace to show; a new `key` replaces the blocks with `state` (opening a project). */
   load?: { key: string; state: unknown } | null;
   /** Called with the serialized workspace after every non-UI change (autosave). */
@@ -52,6 +54,12 @@ interface BlocklyWorkspaceProps {
 }
 
 type WorkspaceState = ReturnType<typeof Blockly.serialization.workspaces.save>;
+
+/** The sketch for `workspace`, with SomLink linked or not (the generator is shared). */
+function generateCode(workspace: Blockly.Workspace, somLink: boolean): string {
+  arduinoGenerator.setSomLink(somLink);
+  return arduinoGenerator.workspaceToCode(workspace);
+}
 
 /**
  * Replace the blocks with `state`. Events are off while loading, so a load is never echoed
@@ -76,6 +84,7 @@ export function BlocklyWorkspace({
   toolboxProfile = 'starter',
   onCodeChange,
   boardId,
+  somLink = false,
   load,
   onWorkspaceChange,
   onLoadError,
@@ -83,6 +92,7 @@ export function BlocklyWorkspace({
   const hostRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const lastBoardId = useRef(boardId);
+  const somLinkRef = useRef(somLink);
   const onCodeRef = useRef(onCodeChange);
   // Blocks survive a re-inject (toolbox profile change, StrictMode double mount).
   const savedState = useRef<WorkspaceState | null>(null);
@@ -119,7 +129,7 @@ export function BlocklyWorkspace({
       if (error !== undefined) onLoadErrorRef.current?.(error);
     }
 
-    const emitCode = () => onCodeRef.current?.(arduinoGenerator.workspaceToCode(workspace));
+    const emitCode = () => onCodeRef.current?.(generateCode(workspace, somLinkRef.current));
     workspace.addChangeListener((event: Blockly.Events.Abstract) => {
       if (event.isUiEvent) return;
       emitCode();
@@ -153,7 +163,7 @@ export function BlocklyWorkspace({
     applyLocale(lang);
     workspace.updateToolbox(buildToolbox(toolboxProfile));
     loadState(Blockly.serialization.workspaces.save(workspace), workspace);
-    onCodeRef.current?.(arduinoGenerator.workspaceToCode(workspace));
+    onCodeRef.current?.(generateCode(workspace, somLinkRef.current));
   }, [lang, toolboxProfile]);
 
   // Opening another project: swap the blocks in place (no re-inject).
@@ -164,7 +174,7 @@ export function BlocklyWorkspace({
     if (!workspace || !next || next.key !== loadKey || loadedKey.current === loadKey) return;
     loadedKey.current = loadKey;
     const error = loadState(next.state, workspace);
-    onCodeRef.current?.(arduinoGenerator.workspaceToCode(workspace));
+    onCodeRef.current?.(generateCode(workspace, somLinkRef.current));
     if (error !== undefined) onLoadErrorRef.current?.(error);
   }, [loadKey]);
 
@@ -174,8 +184,16 @@ export function BlocklyWorkspace({
     if (lastBoardId.current === boardId) return;
     lastBoardId.current = boardId;
     const workspace = workspaceRef.current;
-    if (workspace) onCodeRef.current?.(arduinoGenerator.workspaceToCode(workspace));
+    if (workspace) onCodeRef.current?.(generateCode(workspace, somLinkRef.current));
   }, [boardId]);
+
+  // The "sube por WiFi" flag adds or removes SomLink: no workspace event, so regenerate.
+  useEffect(() => {
+    if (somLinkRef.current === somLink) return;
+    somLinkRef.current = somLink;
+    const workspace = workspaceRef.current;
+    if (workspace) onCodeRef.current?.(generateCode(workspace, somLink));
+  }, [somLink]);
 
   return (
     <div

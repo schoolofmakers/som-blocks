@@ -1,5 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
-import { DEFAULT_BOARD_ID, getBoard } from '../boards/registry';
+import { DEFAULT_BOARD_ID, getBoard, isBoardId } from '../boards/registry';
+import { supportsOta } from '../boards/types';
 import { format, t, type Lang, type MessageKey } from '../i18n/messages';
 import { relativeTime } from './relative-time';
 import { MAX_RECENT_PROJECTS, useProjectsStore, type ProjectNotice as Notice } from './store';
@@ -40,6 +41,10 @@ export function ProjectsMenu({ lang }: ProjectsMenuProps) {
     setOpen(false);
     void action();
   };
+
+  // "Sube por WiFi" only exists on boards that can be updated over the air.
+  const otaBoard =
+    current !== null && isBoardId(current.boardId) && supportsOta(getBoard(current.boardId));
 
   const confirmDelete = () => {
     if (!current) return;
@@ -125,6 +130,22 @@ export function ProjectsMenu({ lang }: ProjectsMenuProps) {
               if (file) run(() => store().importFile(file));
             }}
           />
+          {otaBoard && (
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={current.uploadOverWifi === true}
+              data-testid="project-upload-wifi"
+              className={`${menuButton} flex items-center gap-2`}
+              onClick={() => void store().setUploadOverWifi(!current.uploadOverWifi)}
+            >
+              <span
+                aria-hidden="true"
+                className={`inline-block size-4 rounded border border-border ${current.uploadOverWifi ? 'bg-accent' : ''}`}
+              />
+              {t('UI_PROJECT_UPLOAD_WIFI', lang)}
+            </button>
+          )}
           <button
             type="button"
             role="menuitem"
@@ -189,6 +210,8 @@ function noticeText(notice: Notice, lang: Lang): string {
       return t('UI_PROJECT_SAVE_FAILED', lang);
     case 'export-failed':
       return t('UI_PROJECT_EXPORT_FAILED', lang);
+    case 'paired':
+      return format(t('UI_PROJECT_PAIRED', lang), { name: notice.name });
   }
 }
 

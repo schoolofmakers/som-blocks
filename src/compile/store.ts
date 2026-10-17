@@ -38,6 +38,8 @@ export interface CompileState {
   result: CompileResult | null;
   /** What the last compile was asked to build; tells Upload whether `result` is current. */
   request: CompileRequest | null;
+  /** The last compile was for over-the-air upload ("sube por WiFi", smaller app slot). */
+  ota: boolean;
   error: CompileError | null;
   durationMs: number | null;
   /** The server the last compile went to (errors name it, even if the setting changed). */
@@ -45,7 +47,7 @@ export interface CompileState {
   serverUrl: string;
   /** Saves a custom server URL; an empty string goes back to the default. */
   setServerUrl: (url: string) => void;
-  run: (req: CompileRequest) => Promise<void>;
+  run: (req: CompileRequest, options?: { ota?: boolean }) => Promise<void>;
 }
 
 export const useCompileStore = create<CompileState>()((set, get) => ({
@@ -53,6 +55,7 @@ export const useCompileStore = create<CompileState>()((set, get) => ({
   log: '',
   result: null,
   request: null,
+  ota: false,
   error: null,
   durationMs: null,
   requestUrl: null,
@@ -64,7 +67,7 @@ export const useCompileStore = create<CompileState>()((set, get) => ({
     set({ serverUrl: trimmed || defaultServerUrl() });
   },
 
-  run: async (req) => {
+  run: async (req, { ota = false } = {}) => {
     if (get().status === 'compiling') return;
     const requestUrl = get().serverUrl;
     set({
@@ -72,6 +75,7 @@ export const useCompileStore = create<CompileState>()((set, get) => ({
       log: '',
       result: null,
       request: req,
+      ota,
       error: null,
       durationMs: null,
       requestUrl,

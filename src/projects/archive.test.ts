@@ -108,9 +108,32 @@ describe('generateSketch', () => {
     expect(currentPinProfile()).toBe(before);
     expect(generateSketch(LED_WORKSPACE, 'esp32c3-supermini')).toContain('pinMode(8, OUTPUT);');
   });
+
+  it('links SomLink only when asked ("sube por WiFi"), first include and first setup line', () => {
+    const plain = generateSketch(LED_WORKSPACE, 'esp32c3-supermini');
+    expect(plain).not.toContain('SomLink');
+    const ota = generateSketch(LED_WORKSPACE, 'esp32c3-supermini', { somLink: true });
+    expect(ota.startsWith('#include <SomLink.h>\n')).toBe(true);
+    expect(ota).toMatch(/void setup\(\) \{\n {2}SomLink\.begin\(\);\n {2}pinMode\(8, OUTPUT\);/);
+    // The shared generator is left as it was (the editor's own setting).
+    expect(generateSketch(LED_WORKSPACE, 'esp32c3-supermini')).toBe(plain);
+  });
 });
 
 describe('buildProjectZip', () => {
+  it('never exports the WiFi pairing (its token) or the flag', () => {
+    const token = 'ab'.repeat(32);
+    const p = {
+      ...project(),
+      wifi: { deviceId: 'fa4e00c3c3c3', token, name: 'Azul', relayUrl: 'https://r' },
+      uploadOverWifi: true,
+    };
+    const files = unzipSync(buildProjectZip(p, '').bytes);
+    for (const bytes of Object.values(files)) {
+      expect(new TextDecoder().decode(bytes)).not.toContain(token);
+    }
+  });
+
   it('zips <sketch>/<sketch>.ino, workspace.json and project.json', () => {
     const p = project();
     const code = generateSketch(p.workspace, p.boardId);
