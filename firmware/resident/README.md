@@ -7,7 +7,7 @@ The program a SuperMini runs so it can be reached over WiFi: it learns the WiFi 
 | fqbn | `esp32:esp32:esp32c3:CDCOnBoot=cdc,PartitionScheme=min_spiffs` |
 | core | esp32 3.3.12 (our compile server image) |
 | libraries | only the core's: WiFi, NetworkClientSecure, HTTPClient, Update, Preferences, BLE (NimBLE) + mbedtls. No third-party code. |
-| size | 1,429,411 B app = 72% of the 1,966,080 B `min_spiffs` slot; globals 43,408 B. Serial-only build (`SOM_IMPROV_BLE=0`): 1,157,811 B. |
+| size | 1,429,649 B app = 72% of the 1,966,080 B `min_spiffs` slot; globals 43,408 B. Serial-only build (`SOM_IMPROV_BLE=0`): 1,157,811 B. |
 
 **Why `min_spiffs` and not `default`:** BLE + WiFi + HTTPS together do not fit the `default` 1,310,720 B OTA slot on core 3.3.12 (109%). `min_spiffs` keeps two OTA slots (1,966,080 B each). Every project flagged "sube por WiFi" must be compiled with the same `PartitionScheme=min_spiffs` option; USB-only projects keep `default`. Measurements and the rule: `_config/boards.md`, `_config/architecture.md` → SomLink linking policy.
 
