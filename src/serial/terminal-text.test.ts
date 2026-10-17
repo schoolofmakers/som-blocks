@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { terminalUpdate } from './terminal-text';
+import { cursorRowOffset, terminalUpdate } from './terminal-text';
+
+describe('cursorRowOffset', () => {
+  it('counts wrapped rows per \\r segment and ignores control codes', () => {
+    expect(cursorRowOffset('', 10)).toBe(0);
+    expect(cursorRowOffset('x'.repeat(10), 10)).toBe(0); // pending wrap, same row
+    expect(cursorRowOffset('x'.repeat(11), 10)).toBe(1);
+    expect(cursorRowOffset('10%\r20%\r30%', 10)).toBe(0);
+    // A wrapped segment moves the cursor down; the \r after it stays on that last row.
+    expect(cursorRowOffset(`${'a'.repeat(25)}\rbb`, 10)).toBe(2);
+    expect(cursorRowOffset(`\x1b[31m${'r'.repeat(10)}\x1b[0m`, 10)).toBe(0);
+  });
+});
 
 describe('terminalUpdate', () => {
   it('writes only the new lines', () => {
@@ -39,6 +51,17 @@ describe('terminalUpdate', () => {
       10,
     );
     expect(update.text).toBe('\r\x1b[2A\x1b[Jdone\r\n');
+  });
+
+  it('a \\r progress line stays on one row, so finishing it moves up nothing', () => {
+    const progress = Array.from({ length: 40 }, (_, i) => `${i}%`).join('\r'); // ~120 chars
+    expect(
+      terminalUpdate(
+        { total: 0, partial: progress },
+        { lines: [`${progress}\rlisto`], totalLines: 1, partial: '' },
+        10,
+      ).text.startsWith('\r\x1b[J'),
+    ).toBe(true);
   });
 
   it('redraws everything after a clear or when more lines arrived than the buffer holds', () => {

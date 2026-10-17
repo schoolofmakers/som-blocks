@@ -161,6 +161,32 @@ describe('transport store', () => {
     });
   });
 
+  it('disconnect and reconnect during a reopen wait for it, then the same port opens', async () => {
+    await useTransportStore.getState().connect('uno');
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const open = port.open.bind(port);
+    port.open = async (options) => {
+      await gate;
+      return open(options);
+    };
+    const reopening = useTransportStore.getState().reopen(9600);
+    await flush();
+    let disconnected = false;
+    const disconnecting = useTransportStore
+      .getState()
+      .disconnect()
+      .then(() => (disconnected = true));
+    await flush();
+    expect(disconnected).toBe(false); // still waiting for the reopen
+    const reconnecting = useTransportStore.getState().connect('uno', { port });
+    release();
+    await Promise.all([reopening, disconnecting, reconnecting]);
+    port.open = open;
+    expect(useTransportStore.getState()).toMatchObject({ status: 'connected', error: null });
+    expect(port.baudRate).toBe(DEFAULT_BAUD_RATE);
+  });
+
   it('reopen without a connection does nothing', async () => {
     await useTransportStore.getState().reopen(9600);
     expect(useTransportStore.getState().status).toBe('disconnected');

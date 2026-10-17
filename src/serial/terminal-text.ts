@@ -27,9 +27,25 @@ function fullText(next: Snapshot): string {
   return next.lines.map((line) => line + CRLF).join('') + next.partial;
 }
 
-/** Rows a partial line takes on a terminal `cols` wide (control characters ignored). */
-function rowsOf(text: string, cols: number): number {
-  return Math.max(1, Math.ceil(text.length / Math.max(1, cols)));
+// eslint-disable-next-line no-control-regex -- matching terminal control codes is the point
+const INVISIBLE = /\x1b\[[0-?]*[ -/]*[@-~]|\x1b[@-_]|[\x00-\x08\x0b-\x1f\x7f]/g;
+
+/**
+ * How many rows below the open line's first row the cursor sits after writing it. Each `\r`
+ * returns to column 0 of the *current* row, so a progress line ("10%\r20%\r…") stays on one
+ * row however long the text gets; only a segment wider than the terminal wraps down. Escape
+ * sequences and other control codes take no columns. (Wide characters such as emoji count as
+ * one column, and cursor-moving escape codes are not followed.)
+ */
+export function cursorRowOffset(text: string, cols: number): number {
+  const width = Math.max(1, cols);
+  let rows = 0;
+  for (const segment of text.split('\r')) {
+    const visible = segment.replace(INVISIBLE, '').length;
+    // Exactly `width` characters leave the cursor on the same row (pending wrap).
+    if (visible > 0) rows += Math.ceil(visible / width) - 1;
+  }
+  return rows;
 }
 
 export function terminalUpdate(shown: Shown, next: Snapshot, cols: number): TerminalUpdate {
@@ -48,7 +64,7 @@ export function terminalUpdate(shown: Shown, next: Snapshot, cols: number): Term
   if (shown.partial !== '') {
     // Back to the start of the open line (it may wrap over several rows) and erase it; the
     // completed version of that line is part of the new lines below.
-    const up = rowsOf(shown.partial, cols) - 1;
+    const up = cursorRowOffset(shown.partial, cols);
     text += `\r${up > 0 ? `\x1b[${up}A` : ''}\x1b[J`;
   }
   for (const line of next.lines.slice(next.lines.length - added)) text += line + CRLF;
