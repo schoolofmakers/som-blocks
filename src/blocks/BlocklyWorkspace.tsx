@@ -40,19 +40,59 @@ interface BlocklyWorkspaceProps {
   onCodeChange?: (code: string) => void;
   /** Selected board id; a change regenerates the code (pin blocks read the board's pins). */
   boardId?: string;
+  /** Workspace to show; a new `key` replaces the blocks with `state` (opening a project). */
+  load?: { key: string; state: unknown } | null;
+  /** Called with the serialized workspace after every non-UI change (autosave). */
+  onWorkspaceChange?: (state: WorkspaceState) => void;
+  /** `load.state` could not be loaded; the workspace is left empty. */
+  onLoadError?: (error: unknown) => void;
 }
 
-export function BlocklyWorkspace({ lang, onCodeChange, boardId }: BlocklyWorkspaceProps) {
+type WorkspaceState = ReturnType<typeof Blockly.serialization.workspaces.save>;
+
+/**
+ * Replace the blocks with `state`. Events are off while loading, so a load is never echoed
+ * back as a change (no autosave of what was just opened). Returns the error if it failed.
+ */
+function loadState(state: unknown, workspace: Blockly.Workspace): unknown {
+  Blockly.Events.disable();
+  try {
+    workspace.clear();
+    Blockly.serialization.workspaces.load(state as WorkspaceState, workspace);
+    return undefined;
+  } catch (error) {
+    workspace.clear();
+    return error;
+  } finally {
+    Blockly.Events.enable();
+  }
+}
+
+export function BlocklyWorkspace({
+  lang,
+  onCodeChange,
+  boardId,
+  load,
+  onWorkspaceChange,
+  onLoadError,
+}: BlocklyWorkspaceProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null);
   const lastBoardId = useRef(boardId);
   const onCodeRef = useRef(onCodeChange);
   // Blocks survive a re-inject (language change, StrictMode double mount).
-  const savedState = useRef<ReturnType<typeof Blockly.serialization.workspaces.save> | null>(null);
+  const savedState = useRef<WorkspaceState | null>(null);
+  const loadRef = useRef(load);
+  const loadedKey = useRef<string | undefined>(undefined);
+  const onWorkspaceRef = useRef(onWorkspaceChange);
+  const onLoadErrorRef = useRef(onLoadError);
 
   useEffect(() => {
     onCodeRef.current = onCodeChange;
-  }, [onCodeChange]);
+    onWorkspaceRef.current = onWorkspaceChange;
+    onLoadErrorRef.current = onLoadError;
+    loadRef.current = load;
+  }, [onCodeChange, onWorkspaceChange, onLoadError, load]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -65,12 +105,18 @@ export function BlocklyWorkspace({ lang, onCodeChange, boardId }: BlocklyWorkspa
     const workspace = Blockly.inject(host, workspaceOptions());
     workspaceRef.current = workspace;
     if (savedState.current) {
-      Blockly.serialization.workspaces.load(savedState.current, workspace);
+      loadState(savedState.current, workspace);
+    } else if (loadRef.current) {
+      const error = loadState(loadRef.current.state, workspace);
+      loadedKey.current = loadRef.current.key;
+      if (error !== undefined) onLoadErrorRef.current?.(error);
     }
 
     const emitCode = () => onCodeRef.current?.(arduinoGenerator.workspaceToCode(workspace));
     workspace.addChangeListener((event: Blockly.Events.Abstract) => {
-      if (!event.isUiEvent) emitCode();
+      if (event.isUiEvent) return;
+      emitCode();
+      onWorkspaceRef.current?.(Blockly.serialization.workspaces.save(workspace));
     });
     emitCode();
 
@@ -87,6 +133,18 @@ export function BlocklyWorkspace({ lang, onCodeChange, boardId }: BlocklyWorkspa
       workspace.dispose();
     };
   }, [lang]);
+
+  // Opening another project: swap the blocks in place (no re-inject).
+  const loadKey = load?.key;
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    const next = loadRef.current;
+    if (!workspace || !next || next.key !== loadKey || loadedKey.current === loadKey) return;
+    loadedKey.current = loadKey;
+    const error = loadState(next.state, workspace);
+    onCodeRef.current?.(arduinoGenerator.workspaceToCode(workspace));
+    if (error !== undefined) onLoadErrorRef.current?.(error);
+  }, [loadKey]);
 
   // A board change emits no workspace event, so regenerate explicitly. Mount (and a
   // StrictMode re-run) already emitted from the inject effect, so only real changes count.

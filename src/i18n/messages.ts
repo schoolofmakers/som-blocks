@@ -69,6 +69,29 @@ const es = {
     'No se pudo abrir el puerto. Cierra otras pestañas o el Arduino IDE si lo están usando, y vuelve a intentar.',
   UI_CONNECT_ERROR_DISCONNECTED: 'Se desconectó la placa. Revisa el cable y vuelve a conectar.',
   UI_CONNECT_ERROR_UNKNOWN: 'Algo falló al conectar. Desconecta el cable y vuelve a intentar.',
+  UI_PROJECTS: 'Proyectos',
+  UI_PROJECT_NAME: 'Nombre del proyecto',
+  UI_PROJECT_DEFAULT_NAME: 'Mi proyecto',
+  UI_PROJECT_NEW: 'Nuevo proyecto',
+  UI_PROJECT_DUPLICATE: 'Duplicar',
+  UI_PROJECT_EXPORT: 'Exportar (.zip)',
+  UI_PROJECT_IMPORT: 'Importar…',
+  UI_PROJECT_DELETE: 'Borrar',
+  UI_PROJECT_DELETE_CONFIRM: '¿Borrar «{name}»? No se puede deshacer.',
+  UI_PROJECT_RECENT: 'Recientes',
+  UI_PROJECT_UPDATED: 'editado {when}',
+  UI_PROJECT_MEMORY_ONLY:
+    'Este navegador no deja guardar proyectos. Si cierras la pestaña, se pierde tu trabajo: expórtalo.',
+  UI_PROJECT_CORRUPT:
+    'No se pudo abrir «{name}». Empezamos un proyecto nuevo; el original sigue guardado.',
+  UI_PROJECT_UNKNOWN_BOARD:
+    '«{name}» usaba una placa que no conocemos ({board}). Lo abrimos con la placa {fallback}.',
+  UI_PROJECT_IMPORT_TOO_BIG: 'El archivo es muy grande (máximo 5 MB).',
+  UI_PROJECT_IMPORT_UNREADABLE: 'No se pudo leer ese archivo.',
+  UI_PROJECT_IMPORT_NOT_PROJECT: 'Ese archivo no es un proyecto de SoM Blocks.',
+  UI_PROJECT_SAVE_FAILED: 'No se pudo guardar. Exporta tu proyecto para no perderlo.',
+  UI_PROJECT_EXPORT_FAILED: 'No se pudo exportar el proyecto.',
+  UI_DISMISS: 'Cerrar',
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -141,6 +164,29 @@ const en: Partial<Record<MessageKey, string>> = {
   UI_CONNECT_ERROR_DISCONNECTED: 'The board was disconnected. Check the cable and connect again.',
   UI_CONNECT_ERROR_UNKNOWN:
     'Something went wrong while connecting. Unplug the cable and try again.',
+  UI_PROJECTS: 'Projects',
+  UI_PROJECT_NAME: 'Project name',
+  UI_PROJECT_DEFAULT_NAME: 'My project',
+  UI_PROJECT_NEW: 'New project',
+  UI_PROJECT_DUPLICATE: 'Duplicate',
+  UI_PROJECT_EXPORT: 'Export (.zip)',
+  UI_PROJECT_IMPORT: 'Import…',
+  UI_PROJECT_DELETE: 'Delete',
+  UI_PROJECT_DELETE_CONFIRM: 'Delete “{name}”? This cannot be undone.',
+  UI_PROJECT_RECENT: 'Recent',
+  UI_PROJECT_UPDATED: 'edited {when}',
+  UI_PROJECT_MEMORY_ONLY:
+    "This browser won't let us save projects. If you close the tab your work is lost, so export it.",
+  UI_PROJECT_CORRUPT:
+    'Could not open “{name}”. We started a new project; the original is still saved.',
+  UI_PROJECT_UNKNOWN_BOARD:
+    '“{name}” used a board we don’t know ({board}). We opened it with the {fallback}.',
+  UI_PROJECT_IMPORT_TOO_BIG: 'That file is too big (5 MB max).',
+  UI_PROJECT_IMPORT_UNREADABLE: 'Could not read that file.',
+  UI_PROJECT_IMPORT_NOT_PROJECT: "That file isn't a SoM Blocks project.",
+  UI_PROJECT_SAVE_FAILED: 'Could not save. Export your project so you do not lose it.',
+  UI_PROJECT_EXPORT_FAILED: 'Could not export the project.',
+  UI_DISMISS: 'Close',
 };
 
 export const SUPPORTED_LANGS = ['es', 'en'] as const;

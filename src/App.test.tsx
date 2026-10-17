@@ -7,7 +7,8 @@ describe('App shell', () => {
     render(<App />);
     expect(screen.getByRole('heading', { level: 1, name: 'SoM Blocks' })).toBeInTheDocument();
     expect(screen.getByText('Programa tu placa con bloques')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Espacio de bloques' })).toBeInTheDocument();
+    // The editor mounts once the first project is open (memory store in jsdom).
+    expect(await screen.findByRole('region', { name: 'Espacio de bloques' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Código generado' })).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByTestId('generated-code')).toHaveTextContent('void loop()'),

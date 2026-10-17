@@ -26,16 +26,15 @@ export function ServerSettings({ lang }: ServerSettingsProps) {
   };
 
   return (
-    <details
-      className="relative"
-      open={open}
-      onToggle={(e) => {
-        const isOpen = e.currentTarget.open;
-        setOpen(isOpen);
-        if (isOpen) setDraft(serverUrl);
-      }}
-    >
-      <summary className="cursor-pointer rounded-lg border border-border px-3 py-2 text-sm">
+    <details className="relative" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      {/* The draft resets on the click itself: `toggle` is dispatched as a later task, and
+          on a busy main thread (startup) it could land after the student started typing. */}
+      <summary
+        onClick={() => {
+          if (!open) setDraft(serverUrl);
+        }}
+        className="cursor-pointer rounded-lg border border-border px-3 py-2 text-sm"
+      >
         {t('UI_SERVER_SETTINGS', lang)}
       </summary>
       {/* Left-anchored on phones, where the wrapped header puts the controls at the left
