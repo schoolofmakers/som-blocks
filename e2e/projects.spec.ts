@@ -1,5 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
+/** Código is full-toolbox only (docs/adr/0001-starter-toolbox.md); tests that drag from it use this. */
+const FULL = '/?lang=es&toolbox=full';
+
 /** Drag the first block of the Código category (`include library [Wire.h]`) onto the canvas. */
 async function dropIncludeBlock(page: Page): Promise<void> {
   await page.getByRole('treeitem', { name: 'Código' }).click();
@@ -35,7 +38,7 @@ function storedProjects(page: Page): Promise<string> {
 }
 
 test('blocks are autosaved and come back after a reload', async ({ page }) => {
-  await page.goto('/?lang=es');
+  await page.goto(FULL);
   await expect(page.getByTestId('project-name')).toHaveValue('Mi proyecto');
   await dropIncludeBlock(page);
   const code = page.getByTestId('generated-code');
@@ -93,7 +96,7 @@ test('without IndexedDB the editor still works in memory and says so', async ({ 
       throw new DOMException('A mutation operation was attempted', 'InvalidStateError');
     };
   });
-  await page.goto('/?lang=es');
+  await page.goto(FULL);
   await expect(page.getByTestId('projects-memory-only')).toContainText(
     'Este navegador no deja guardar proyectos',
   );
