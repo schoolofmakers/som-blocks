@@ -6,7 +6,7 @@
 //   token        64 hex chars, sha256 stored by the relay
 //   prevToken    previous token while the relay has not accepted `token` yet ("" otherwise)
 //   otaBuild     buildId of the last OTA written by this board ("" when none pending)
-//   otaSlot      label of the partition that OTA went to ("ota_0"/"ota_1")
+//   otaSlot      label of the partition that OTA went to ("app0"/"app1" in min_spiffs)
 // Thread-safe: the loop and the relay task both use it.
 #pragma once
 
