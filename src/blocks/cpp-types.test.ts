@@ -421,6 +421,31 @@ describe('generator edge cases', () => {
       }),
     ]);
     expect(code).toContain('n = l.toDouble() / 2.0;');
+
+    // …and as a list position.
+    const index = arduinoGenerator.workspaceToCode(
+      load(
+        [
+          set('s', text('2')),
+          set('l', {
+            type: 'lists_create_with',
+            extraState: { itemCount: 2 },
+            inputs: { ADD0: { block: num(1) }, ADD1: { block: num(2) } },
+          }),
+          set('n', {
+            type: 'lists_getIndex',
+            fields: { MODE: 'GET', WHERE: 'FROM_START' },
+            inputs: { VALUE: { block: get('l') }, AT: { block: get('s') } },
+          }),
+        ],
+        [
+          { name: 's', id: 's' },
+          { name: 'l', id: 'l' },
+          { name: 'n', id: 'n' },
+        ],
+      ),
+    );
+    expect(index).toContain('n = l[(int)(s.toDouble()) - 1];');
   });
 
   it('rounds with floor(x + 0.5), never the AVR round() macro', () => {

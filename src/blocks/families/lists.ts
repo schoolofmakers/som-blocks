@@ -5,6 +5,7 @@ import {
   compileError,
   isArrayType,
   listVariableSize,
+  numberInput,
   stringInput,
   typedInput,
   valueType,
@@ -58,11 +59,15 @@ function index(block: Blockly.Block, generator: ArduinoGenerator, size: number):
     case 'RANDOM':
       return `random(${size})`;
     case 'FROM_START': {
-      const at = generator.valueToCode(block, 'AT', Order.ADDITIVE) || '1';
+      const at = block.getInputTargetBlock('AT')
+        ? numberInput(block, generator, 'AT', Order.ADDITIVE)
+        : '1';
       return /^\d+$/.test(at) ? String(Number(at) - 1) : `(int)(${at}) - 1`;
     }
     case 'FROM_END': {
-      const at = generator.valueToCode(block, 'AT', Order.ADDITIVE) || '1';
+      const at = block.getInputTargetBlock('AT')
+        ? numberInput(block, generator, 'AT', Order.ADDITIVE)
+        : '1';
       return /^\d+$/.test(at) ? String(size - Number(at)) : `${size} - (int)(${at})`;
     }
     default:
