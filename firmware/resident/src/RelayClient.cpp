@@ -42,48 +42,52 @@ String jsonField(const char *key, const String &value, bool first = false) {
   return String(out.c_str());
 }
 
-// Best effort: a status that cannot be delivered after 3 tries is dropped (the editor reports
-// a silence warning after 60 s, _config/architecture.md).
-void postStatus(const String &buildId, const char *state, const String &detail = "") {
+// Up to 3 tries. Returns true when the relay has the report (204) or refused it for good (4xx
+// other than 429, e.g. 404 unknown_build after the build expired); false when it may still be
+// delivered later. During an OTA a lost report is only a silence warning in the editor.
+bool postStatus(const String &buildId, const char *state, const String &detail = "") {
   String body = "{" + jsonField("buildId", buildId, true) + jsonField("state", state);
   if (detail.length() > 0) body += jsonField("detail", detail.substring(0, 200));
   body += "}";
   for (int attempt = 0; attempt < 3; attempt++) {
     relay::Response res = relay::call("POST", relay::devicePath("status"), body, HTTP_TIMEOUT_MS, true);
-    if (res.code == 204 || res.code == 200) return;
-    if (res.code >= 400 && res.code < 500 && res.code != 429) return;  // not retryable
+    if (res.code == 204 || res.code == 200) return true;
+    if (res.code >= 400 && res.code < 500 && res.code != 429) return true;  // not retryable
     vTaskDelay(pdMS_TO_TICKS(res.retryAfterS > 0 ? res.retryAfterS * 1000 : 1000 * (attempt + 1)));
   }
+  return false;
 }
 
 // After a reboot: did the OTA we wrote come up? Only this firmware can tell when the new image
 // is another resident build; a student sketch reports `running` through SomLink (D3).
-void reportPendingOta() {
+// Returns true when nothing is left to report; the NVS keys stay until the relay has the result,
+// so a WiFi drop here only delays the report to the next registration.
+bool reportPendingOta() {
   String buildId, slot;
-  if (!pairing::pendingOta(buildId, slot)) return;
+  if (!pairing::pendingOta(buildId, slot)) return true;
   const esp_partition_t *running = esp_ota_get_running_partition();
-  if (running && slot == running->label) {
-    console::log("OTA %s: corriendo", buildId.c_str());
-    postStatus(buildId, "running");
-  } else {
-    console::log("OTA %s: la placa volvio al programa anterior", buildId.c_str());
-    postStatus(buildId, "failed", "booted the previous app instead of " + slot);
-  }
+  bool booted = running && slot == running->label;
+  bool delivered = booted ? postStatus(buildId, "running")
+                          : postStatus(buildId, "failed", "booted the previous app instead of " + slot);
+  if (!delivered) return false;
+  console::log(booted ? "OTA %s: corriendo" : "OTA %s: la placa volvio al programa anterior", buildId.c_str());
   pairing::clearPendingOta();
+  return true;
 }
 
 enum class RegisterResult { Ok, Rejected, Retry };
 
 RegisterResult registerDevice(uint32_t &retryAfterS) {
-  String prev = pairing::previousToken();
+  String token, prev;
+  pairing::registerSnapshot(token, prev);
   String body = "{" + jsonField("fw", SOM_FW_NAME "/" SOM_FW_VERSION, true) +
                 jsonField("name", pairing::deviceName()) + jsonField("chip", "esp32c3");
   if (prev.length() > 0) body += jsonField("previousToken", prev);
   body += "}";
-  relay::Response res = relay::call("POST", relay::devicePath("register"), body, HTTP_TIMEOUT_MS, true);
+  relay::Response res = relay::call("POST", relay::devicePath("register"), body, HTTP_TIMEOUT_MS, true, &token);
   retryAfterS = res.retryAfterS;
   if (res.code == 204 || res.code == 200) {
-    if (prev.length() > 0) pairing::clearPrevious();
+    pairing::markAccepted(token);
     return RegisterResult::Ok;
   }
   if (res.code == 409) return RegisterResult::Rejected;
@@ -257,11 +261,10 @@ void task(void *) {
       backoff.reset();
       isOnline = true;
       console::log("Conectada al relay como %s", pairing::deviceId().c_str());
-      if (!reportedBoot) {
-        reportedBoot = true;
-        reportPendingOta();
-      }
     }
+
+    // Retried every pass (≤ 25 s apart) until the relay has it.
+    if (!reportedBoot) reportedBoot = reportPendingOta();
 
     String path = relay::devicePath("next") + "?wait=" + LONG_POLL_WAIT_S;
     relay::Response res = relay::call("GET", path, "", LONG_POLL_TIMEOUT_MS, true);

@@ -35,6 +35,7 @@ void enqueue(const std::string &line) {
 static relay::Response flushBatch() {
   std::string body;
   size_t count = 0;
+  uint64_t firstSeq = 0;
   xSemaphoreTake(lock, portMAX_DELAY);
   if (queue->dropped() != reportedDrops) {
     char note[64];
@@ -42,6 +43,7 @@ static relay::Response flushBatch() {
     reportedDrops = queue->dropped();
     queue->push(note);
   }
+  firstSeq = queue->frontSeq();
   count = buildSerialBatch(*queue, SERIAL_BATCH_LINES, SERIAL_BATCH_BYTES, body);
   xSemaphoreGive(lock);
   relay::Response res;
@@ -49,7 +51,7 @@ static relay::Response flushBatch() {
   res = relay::call("POST", relay::devicePath("serial"), String(body.c_str()), HTTP_TIMEOUT_MS, false);
   if (res.code == 204 || res.code == 200) {
     xSemaphoreTake(lock, portMAX_DELAY);
-    queue->popFront(count);
+    queue->ackBefore(firstSeq + count);  // not popFront: lines may have arrived or overflowed meanwhile
     xSemaphoreGive(lock);
   }
   return res;

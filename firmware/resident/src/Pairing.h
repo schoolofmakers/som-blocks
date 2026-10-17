@@ -21,7 +21,6 @@ void begin();
 String deviceId();    // base MAC, lower-case hex, no separators
 String deviceName();  // "SoM-xxxx" (last 4 hex digits of the MAC)
 String token();
-String previousToken();
 String provisionedUrl();  // https://<editor>/pair?device=<id>&token=<token>
 
 bool hasCredentials();
@@ -33,8 +32,13 @@ void saveCredentials(const String &ssid, const String &password);
 // still knows as prevToken.
 void forgetAndRotate();
 
-// The relay accepted the current token: drop prevToken.
-void clearPrevious();
+// Token + previous token read together, for one register call.
+void registerSnapshot(String &token, String &previous);
+
+// The relay answered 204 to a register that presented `acceptedToken`: drop prevToken, or, if
+// "Olvidar placa" rotated the token while that call was in flight, keep `acceptedToken` as the
+// previous token (it is what the relay stores now).
+void markAccepted(const String &acceptedToken);
 
 void setPendingOta(const String &buildId, const String &slotLabel);
 bool pendingOta(String &buildId, String &slotLabel);

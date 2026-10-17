@@ -22,7 +22,9 @@ constexpr int ERR_LOW_MEMORY = -100;
 
 // Control calls (register, next, status, input) share a 50/min budget; `control` makes the call
 // wait for a token first (the relay allows 60/min per device).
-Response call(const char *method, const String &path, const String &jsonBody, uint32_t timeoutMs, bool control);
+// `bearer` overrides the stored token (register sends the token it snapshotted).
+Response call(const char *method, const String &path, const String &jsonBody, uint32_t timeoutMs, bool control,
+              const String *bearer = nullptr);
 
 String devicePath(const char *suffix);  // "/v1/devices/<id>/<suffix>"
 

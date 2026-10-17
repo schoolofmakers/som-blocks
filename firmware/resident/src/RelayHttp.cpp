@@ -28,7 +28,8 @@ String devicePath(const char *suffix) {
   return String("/v1/devices/") + pairing::deviceId() + "/" + suffix;
 }
 
-Response call(const char *method, const String &path, const String &jsonBody, uint32_t timeoutMs, bool control) {
+Response call(const char *method, const String &path, const String &jsonBody, uint32_t timeoutMs, bool control,
+              const String *bearer) {
   Response res;
   if (WiFi.status() != WL_CONNECTED) {
     res.code = -1;
@@ -55,7 +56,7 @@ Response call(const char *method, const String &path, const String &jsonBody, ui
     res.detail = "bad relay URL";
     return res;
   }
-  http.addHeader("Authorization", String("Bearer ") + pairing::token());
+  http.addHeader("Authorization", String("Bearer ") + (bearer ? *bearer : pairing::token()));
   if (jsonBody.length() > 0) http.addHeader("Content-Type", "application/json");
   const char *keys[] = {"Retry-After"};
   http.collectHeaders(keys, 1);

@@ -207,6 +207,14 @@ class WifiLink {
 // the new one (_config/architecture.md → Pairing). If a rotation is still pending
 // (the relay has not accepted the last new token), the relay still stores the OLDER token, so
 // that one stays as `previous`.
+// The relay accepted `accepted` (a register 204). If no rotation happened since that register
+// was sent, nothing is pending any more; if the board rotated meanwhile, the relay now stores
+// `accepted`, so that is the token the next register must present as previousToken.
+template <typename Str>
+inline Str previousAfterAccept(const Str &current, const Str &accepted) {
+  return current == accepted ? Str() : accepted;
+}
+
 template <typename Str>
 inline Str previousAfterRotation(const Str &current, const Str &pendingPrevious) {
   return pendingPrevious.empty() ? current : pendingPrevious;

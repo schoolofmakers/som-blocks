@@ -118,7 +118,7 @@ static void testRpcResult() {
   // Overflow: strings that do not fit in 255 data bytes are left out, never truncated mid-way.
   std::vector<std::string> many(10, std::string(40, 'x'));
   Bytes capped = improv::buildRpcResult(0x04, many, true);
-  CHECK(capped[1] <= 255);
+  CHECK(capped.size() == static_cast<size_t>(capped[1]) + 3);
   CHECK(capped[1] == 6 * 41);
 }
 
@@ -313,6 +313,10 @@ static void testTokenRotation() {
   CHECK(som::previousAfterRotation(std::string("A"), none) == "A");
   // Second rotation before the relay accepted the first: keep the token the relay still has.
   CHECK(som::previousAfterRotation(std::string("B"), std::string("A")) == "A");
+  // Register with B (previous A) accepted: nothing pending.
+  CHECK(som::previousAfterAccept(std::string("B"), std::string("B")).empty());
+  // BOOT rotated B -> C while that register was in flight: the relay now has B.
+  CHECK(som::previousAfterAccept(std::string("C"), std::string("B")) == "B");
 }
 
 static void testText() {
@@ -387,6 +391,22 @@ static void testLineQueueAndBatch() {
   CHECK(n > 0 && n < 50 && body.size() <= 1000);
   std::vector<std::string> back;
   CHECK(som::json::getStringArray(body, "lines", back) && back.size() == n);
+
+  // Lines pushed (and overflow drops) while a batch is in flight are not acked by mistake.
+  som::LineQueue race(4, 20);
+  race.push("a");
+  race.push("b");
+  race.push("c");
+  uint64_t first = race.frontSeq();
+  n = som::buildSerialBatch(race, 50, 8000, body);
+  CHECK(n == 3);
+  race.push("d");
+  race.push("e");  // full: drops "a" (already in flight)
+  race.push("f");  // drops "b"
+  race.ackBefore(first + n);
+  CHECK(race.size() == 3 && race.at(0) == "d" && race.at(2) == "f");
+  race.ackBefore(first);  // stale ack: no-op
+  CHECK(race.size() == 3);
 
   som::LineQueue emptyQ;
   CHECK(som::buildSerialBatch(emptyQ, 50, 8192, body) == 0);

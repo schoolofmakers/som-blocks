@@ -80,11 +80,6 @@ String token() {
   return tokenValue;
 }
 
-String previousToken() {
-  Guard g;
-  return prevValue;
-}
-
 String provisionedUrl() {
   return String(pairUrl(SOM_EDITOR_URL, idHex.c_str(), token().c_str()).c_str());
 }
@@ -125,12 +120,19 @@ void forgetAndRotate() {
   tokenValue = fresh;
 }
 
-void clearPrevious() {
+void registerSnapshot(String &token, String &previous) {
   Guard g;
-  if (prevValue.length() == 0) return;
-  String empty;
-  writeKeys({{"prevToken", &empty}});
-  prevValue = "";
+  token = tokenValue;
+  previous = prevValue;
+}
+
+void markAccepted(const String &acceptedToken) {
+  Guard g;
+  String prev = String(
+      previousAfterAccept(std::string(tokenValue.c_str()), std::string(acceptedToken.c_str())).c_str());
+  if (prev == prevValue) return;
+  writeKeys({{"prevToken", &prev}});
+  prevValue = prev;
 }
 
 void setPendingOta(const String &buildId, const String &slotLabel) {

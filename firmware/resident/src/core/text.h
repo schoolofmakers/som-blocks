@@ -246,6 +246,7 @@ class LineQueue {
       head_ = (head_ + 1) % capacity_;
       count_--;
       dropped_++;
+      frontSeq_++;
     }
     lines_[(head_ + count_) % capacity_] = clipped;
     count_++;
@@ -261,6 +262,16 @@ class LineQueue {
     for (size_t i = 0; i < n; i++) lines_[(head_ + i) % capacity_].clear();
     head_ = (head_ + n) % capacity_;
     count_ -= n;
+    frontSeq_ += n;
+  }
+
+  // Sequence number of the front line (counts every line that ever left the front). A sender
+  // records it before building a batch and acknowledges with ackBefore(seq + sent): lines that
+  // arrived meanwhile, or that overflow already dropped, are never removed by mistake.
+  uint64_t frontSeq() const { return frontSeq_; }
+
+  void ackBefore(uint64_t seq) {
+    if (seq > frontSeq_) popFront(static_cast<size_t>(seq - frontSeq_));
   }
 
  private:
@@ -270,6 +281,7 @@ class LineQueue {
   size_t head_ = 0;
   size_t count_ = 0;
   uint32_t dropped_ = 0;
+  uint64_t frontSeq_ = 0;
 };
 
 // `{"lines":[...]}` from the front of `queue`: at most maxLines lines and maxBytes of JSON
