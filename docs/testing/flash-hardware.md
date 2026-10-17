@@ -47,6 +47,8 @@ Uploading stub...
 Running stub...
 Stub running...
 Changing baudrate to 921600
+flash params: keep (server reported mode qio, freq 80m; images keep their own headers)
+Not changing the image
 Writing at 0x0... (100%)
 Wrote 20000 bytes (… compressed) at 0x0 in … seconds.
 Writing at 0x8000... (100%)
@@ -59,6 +61,9 @@ Hard resetting via RTS pin...
 
 The first `Wrote … at 0x0` line is the point of this PR: the bootloader goes to **0x0**, not
 the 0x1000 the compile server sends. If it says `0x1000`, stop: the board will not boot.
+There must be **no** `Flash params set to …` line: the flasher keeps the image headers. If the
+bootloader header is rewritten to QIO, the C3 boot log after RESET shows
+`mode:QIO … ets_loader.c 78` and a TG0WDT reset loop (seen on a real SuperMini before the fix).
 
 **Arduino NANO old bootloader (avrgirl)**
 

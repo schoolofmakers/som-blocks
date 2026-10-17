@@ -160,16 +160,11 @@ describe('mapImages', () => {
 });
 
 describe('flashParams', () => {
-  it('passes the server values through and falls back to keep', () => {
-    expect(flashParams({ flashMode: 'qio', flashFreq: '80m' })).toEqual({
-      flashMode: 'qio',
-      flashFreq: '80m',
-    });
-    expect(flashParams({ flashFreq: '40' })).toEqual({ flashMode: 'keep', flashFreq: '40m' });
-    expect(flashParams({ flashMode: 'weird', flashFreq: '' })).toEqual({
-      flashMode: 'keep',
-      flashFreq: 'keep',
-    });
+  // Regression (real ESP32-C3 SuperMini, 2026-10-17): passing the server's qio/80m rewrote the
+  // bootloader header to QIO and the ROM failed with `ets_loader.c 78` in a watchdog reset
+  // loop. arduino-esp32 uploads with keep/keep/keep; so must we.
+  it('is always keep/keep/keep', () => {
+    expect(flashParams()).toEqual({ flashMode: 'keep', flashFreq: 'keep', flashSize: 'keep' });
   });
 });
 
@@ -234,13 +229,17 @@ describe('esptoolFlasher.flash', () => {
     expect(h.loaders[0]!.baudrate).toBe(921600);
     const options = h.writeFlash.mock.calls[0]![0];
     expect(options.fileArray.map((f) => f.address)).toEqual([0x0, 0x8000, 0xe000, 0x10000]);
+    // The result says qio/80m (c3Result); the flasher must still keep the image headers.
     expect(options).toMatchObject({
-      flashMode: 'qio',
-      flashFreq: '80m',
+      flashMode: 'keep',
+      flashFreq: 'keep',
       flashSize: 'keep',
       eraseAll: false,
       compress: true,
     });
+    expect(log).toContain(
+      'flash params: keep (server reported mode qio, freq 80m; images keep their own headers)',
+    );
     expect(h.after).toHaveBeenCalledWith('hard_reset');
     expect(h.disconnects).toBe(1);
     expect(progress[0]).toEqual({ phase: 'connect', percent: 0 });

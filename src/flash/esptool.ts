@@ -19,8 +19,10 @@ import {
 // reset sequence is esptool-js's own choice: for the C3 SuperMini's native USB-Serial/JTAG
 // (VID 0x303a, PID 0x1001) it uses `UsbJtagSerialReset`, otherwise the classic DTR/RTS pulse.
 // Differences: the bootloader address comes from our board registry, not from the compile
-// server (see `mapImages`); the detected chip is checked against the selected board before
-// anything is written; and the library is loaded lazily so it stays out of the main bundle.
+// server (see `mapImages`); flash mode/frequency/size are always `keep`, never the server's
+// values (see `flashParams`: rewriting the C3 bootloader header to QIO stops it booting); the
+// detected chip is checked against the selected board before anything is written; and the
+// library is loaded lazily so it stays out of the main bundle.
 
 /** esptool-js `CHIP_NAME` for each chip in our registry (undefined: not an esp chip). */
 export const ESP_CHIP_NAMES: Readonly<Record<Chip, string | undefined>> = {
@@ -106,37 +108,21 @@ export function mapImages(
   return mapped;
 }
 
-type FlashModeValue = 'keep' | 'qio' | 'qout' | 'dio' | 'dout';
-type FlashFreqValue =
-  'keep' | '80m' | '60m' | '48m' | '40m' | '30m' | '26m' | '24m' | '20m' | '16m' | '15m' | '12m';
-
-const FLASH_MODES: readonly FlashModeValue[] = ['qio', 'qout', 'dio', 'dout'];
-const FLASH_FREQS: readonly FlashFreqValue[] = [
-  '80m',
-  '60m',
-  '48m',
-  '40m',
-  '30m',
-  '26m',
-  '24m',
-  '20m',
-  '16m',
-  '15m',
-  '12m',
-];
-
-/** `flash_mode` / `flash_freq` from the compile result; `keep` when absent or unknown. */
-export function flashParams(result: { flashMode?: string; flashFreq?: string }): {
-  flashMode: FlashModeValue;
-  flashFreq: FlashFreqValue;
-} {
-  const mode = result.flashMode?.trim().toLowerCase();
-  let freq = result.flashFreq?.trim().toLowerCase();
-  if (freq && /^\d+$/.test(freq)) freq = `${freq}m`;
-  return {
-    flashMode: FLASH_MODES.find((m) => m === mode) ?? 'keep',
-    flashFreq: FLASH_FREQS.find((f) => f === freq) ?? 'keep',
-  };
+/**
+ * Flash parameters for esptool-js: always `keep`, whatever the compile server reports.
+ *
+ * Hardware evidence (ESP32-C3 SuperMini, 2026-10-17): passing the server's `qio` / `80m`
+ * made esptool-js rewrite the bootloader header at 0x0 to QIO, and the ROM could not load the
+ * second-stage bootloader: `mode:QIO, clock div:1 … ets_loader.c 78`, then a TG0WDT reset loop.
+ * The server's values come from `build.boot`; arduino-esp32 deliberately builds the C3
+ * bootloader header as DIO even for the QIO menu entry (boards.txt
+ * `menu.FlashMode.qio.build.flash_mode=dio`, `build.boot=qio`; the bootloader switches to QIO
+ * itself), and its upload recipe passes `--flash_mode keep --flash_freq keep --flash_size
+ * keep`. So do we: the images already carry the right header. The server's values are only
+ * logged.
+ */
+export function flashParams(): { flashMode: 'keep'; flashFreq: 'keep'; flashSize: 'keep' } {
+  return { flashMode: 'keep', flashFreq: 'keep', flashSize: 'keep' };
 }
 
 /**
@@ -299,10 +285,13 @@ export const esptoolFlasher: Flasher = {
       phase = 'write';
       hooks.onProgress({ phase, percent: 0 });
       const sizes = fileArray.map((image) => image.data.byteLength);
+      hooks.onLog(
+        `flash params: keep (server reported mode ${result.flashMode ?? '-'}, ` +
+          `freq ${result.flashFreq ?? '-'}; images keep their own headers)`,
+      );
       await loader.writeFlash({
         fileArray,
-        ...flashParams(result),
-        flashSize: 'keep',
+        ...flashParams(),
         eraseAll: false,
         compress: true,
         reportProgress: (fileIndex, written, total) => {
