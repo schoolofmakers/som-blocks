@@ -59,16 +59,15 @@ describe('LineAssembler', () => {
   });
 
   it('cuts a long line the same way whether its newline comes in the same chunk or later', () => {
-    const cases = ['abcdefghij\n', 'abcdefgh\n', 'abcdefgh\r\n', 'abcd\r\n'];
+    const cases = ['abcdefghij\n', 'abcdefgh\n', 'abcdefgh\r\n', 'abcd\r\n', 'abc😀de😀fgh\n'];
     for (const text of cases) {
       const whole = new LineAssembler({ maxLineLength: 4 });
-      const expected = whole.push(bytes(text));
-      for (let cut = 1; cut < text.length; cut += 1) {
+      const encoded = bytes(text);
+      const expected = whole.push(encoded);
+      // Split at every byte offset, as USB chunks do (also inside multi-byte characters).
+      for (let cut = 1; cut < encoded.length; cut += 1) {
         const split = new LineAssembler({ maxLineLength: 4 });
-        const got = [
-          ...split.push(bytes(text.slice(0, cut))),
-          ...split.push(bytes(text.slice(cut))),
-        ];
+        const got = [...split.push(encoded.slice(0, cut)), ...split.push(encoded.slice(cut))];
         expect(got, `${JSON.stringify(text)} cut at ${cut}`).toEqual(expected);
       }
     }
@@ -77,6 +76,15 @@ describe('LineAssembler', () => {
       'efgh',
       'ij',
     ]);
+  });
+
+  it('never cuts an emoji in half', () => {
+    const whole = new LineAssembler({ maxLineLength: 4 }).push(bytes('abc😀de😀fgh\n'));
+    expect(whole).toEqual(['abc', '😀de', '😀fg', 'h']);
+    expect(whole.join('')).toBe('abc😀de😀fgh');
+    const open = new LineAssembler({ maxLineLength: 4 });
+    expect(open.push(bytes('abc😀de'))).toEqual(['abc']);
+    expect(open.partial).toBe('😀de');
   });
 
   it('finish() closes the open line and a half character, so the next one starts fresh', () => {

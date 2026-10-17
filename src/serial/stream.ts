@@ -16,6 +16,17 @@ export interface LineAssemblerOptions {
   maxLineLength?: number;
 }
 
+/**
+ * Where to cut `text` (longer than `limit`) so a character outside the BMP (an emoji is two
+ * UTF-16 units) is never split in half: one unit earlier when the cut would fall inside it.
+ */
+function cutPoint(text: string, limit: number): number {
+  const unit = text.charCodeAt(limit - 1);
+  const splitsPair = unit >= 0xd800 && unit <= 0xdbff;
+  if (!splitsPair) return limit;
+  return limit > 1 ? limit - 1 : limit + 1;
+}
+
 /** A fixed-size ring of the most recent lines; the oldest line drops out first. */
 export class LineRing {
   readonly capacity: number;
@@ -148,8 +159,9 @@ export class LineAssembler {
       this.pending.length > limit &&
       !(this.pending.length === limit + 1 && this.pending.endsWith('\r'))
     ) {
-      this.complete(this.pending.slice(0, limit), done);
-      this.pending = this.pending.slice(limit);
+      const cut = cutPoint(this.pending, limit);
+      this.complete(this.pending.slice(0, cut), done);
+      this.pending = this.pending.slice(cut);
     }
     return done;
   }
@@ -157,8 +169,9 @@ export class LineAssembler {
   private completeBounded(line: string, done: string[]): void {
     let rest = line;
     while (rest.length > this.maxLineLength) {
-      this.complete(rest.slice(0, this.maxLineLength), done);
-      rest = rest.slice(this.maxLineLength);
+      const cut = cutPoint(rest, this.maxLineLength);
+      this.complete(rest.slice(0, cut), done);
+      rest = rest.slice(cut);
     }
     this.complete(rest, done);
   }
