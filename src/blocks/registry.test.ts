@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly/core';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { arduinoGenerator } from './arduino-generator';
 import { logicFamily } from './families/logic';
 import { rawFamily } from './families/raw';
@@ -67,6 +67,30 @@ describe('applyLocale', () => {
     applyLocale('es');
     expect(Blockly.Msg['SOM_RAW_CATEGORY']).toBe('Código');
     expect(Blockly.Msg['DELETE_BLOCK']).toBe('Eliminar bloque');
+  });
+
+  it('falls back to es for a family key missing in the language, warning once in dev', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const partial: BlockFamily = {
+      id: 'partial_i18n',
+      blocks: [{ type: 'partial_i18n_block', message0: '%{BKY_PARTIAL_I18N_LABEL}' }],
+      generators: { partial_i18n_block: () => '' },
+      toolbox: [],
+      messages: {
+        es: { PARTIAL_I18N_LABEL: 'etiqueta', PARTIAL_I18N_DONE: 'hecho' },
+        en: { PARTIAL_I18N_DONE: 'done' },
+      },
+    };
+    registerFamily(partial);
+    applyLocale('en');
+    applyLocale('en');
+    expect(Blockly.Msg['PARTIAL_I18N_LABEL']).toBe('etiqueta');
+    expect(Blockly.Msg['PARTIAL_I18N_DONE']).toBe('done');
+    const warnings = warn.mock.calls.filter(([text]) => String(text).includes('PARTIAL_I18N'));
+    expect(warnings).toHaveLength(1);
+    expect(String(warnings[0]?.[0])).toContain('family "partial_i18n" key "PARTIAL_I18N_LABEL"');
+    applyLocale('es');
+    warn.mockRestore();
   });
 
   it('every family has the same message keys in es and en', () => {

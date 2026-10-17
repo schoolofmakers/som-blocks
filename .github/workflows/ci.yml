@@ -42,6 +42,10 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      # Fails on es/en key-set drift, unused keys and unresolved %{BKY_…} references.
+      - name: i18n check
+        run: pnpm i18n:check
+
       - name: Build
         run: pnpm build
 

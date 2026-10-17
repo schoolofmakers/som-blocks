@@ -15,6 +15,7 @@ pnpm lint           # ESLint
 pnpm format         # Prettier (write); pnpm format:check in CI
 pnpm typecheck      # tsc -b, strict + noUncheckedIndexedAccess
 pnpm test           # Vitest unit tests (jsdom), incl. generator golden tests
+pnpm i18n:check     # es/en key sets match, no unused keys, every %{BKY_…} resolves (_config/i18n.md)
 pnpm test:golden:update  # rewrite src/blocks/__golden__/fixtures/*.ino from the generator (review the diff!)
 pnpm build          # typecheck + production build with PWA manifest and service worker into dist/
 pnpm preview        # serve dist/
