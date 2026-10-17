@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { t, type Lang } from '../i18n/messages';
 import { useCompileStore } from './store';
 
@@ -11,27 +11,36 @@ export function ServerSettings({ lang }: ServerSettingsProps) {
   const serverUrl = useCompileStore((s) => s.serverUrl);
   const setServerUrl = useCompileStore((s) => s.setServerUrl);
   const [draft, setDraft] = useState(serverUrl);
-  const [open, setOpen] = useState(false);
+  // The <details> element owns its open state. Mirroring it in React state via `onToggle`
+  // raced: `toggle` is dispatched as a later task, and input events (typing, Save) can be
+  // handled before it. Save's `setOpen(false)` was then a no-op (the state was still
+  // false), the element stayed open, and the late `toggle` set the state to open.
+  // Read and close the element directly instead.
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+
+  const close = () => {
+    if (detailsRef.current) detailsRef.current.open = false;
+  };
 
   const save = (event: FormEvent) => {
     event.preventDefault();
     setServerUrl(draft);
-    setOpen(false);
+    close();
   };
 
   const reset = () => {
     setServerUrl('');
     setDraft(useCompileStore.getState().serverUrl);
-    setOpen(false);
+    close();
   };
 
   return (
-    <details className="relative" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-      {/* The draft resets on the click itself: `toggle` is dispatched as a later task, and
-          on a busy main thread (startup) it could land after the student started typing. */}
+    <details ref={detailsRef} className="relative">
+      {/* The draft resets on the click that opens the popover (the element is still closed
+          while its click handlers run), never on the later `toggle` event. */}
       <summary
         onClick={() => {
-          if (!open) setDraft(serverUrl);
+          if (!detailsRef.current?.open) setDraft(serverUrl);
         }}
         className="cursor-pointer rounded-lg border border-border px-3 py-2 text-sm"
       >

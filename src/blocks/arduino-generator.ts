@@ -60,6 +60,16 @@ export const RESERVED_WORDS: readonly string[] = [
   // ESP32 WiFi globals / classes and the wifi family's helpers (families/wifi.ts)
   'WiFi,WiFiClient,WiFiClientSecure,HTTPClient,somWifiConnect,somHttpRequest,somHttpGet',
   'somHttpPost,WL_CONNECTED,WIFI_STA,HTTPC_STRICT_FOLLOW_REDIRECTS',
+  // ESP32 BLE classes, std (std::mutex) and the ble family's globals / helpers (families/ble.ts)
+  'std,BLEDevice,BLEServer,BLEService,BLECharacteristic,BLEAdvertising,BLE2902',
+  'BLEServerCallbacks,BLECharacteristicCallbacks,SOM_BLE_SERVICE_UUID',
+  'SOM_BLE_CHARACTERISTIC_UUID,SomBleServerCallbacks,SomBleWriteCallbacks,somBleServer',
+  'somBleChar,somBleLast,somBleWrites,somBleLock,somBleStart,somBleNotify,somBleReceived',
+  'somBleArrived,somBleConnected',
+  // Not here on purpose: helper names the generators allocate through nameDB_ after the
+  // student's names are claimed (som_every, som_ble_seen, isPrime, randomInt,
+  // constrainValue). Reserving them would rename the helpers themselves (som_every2…);
+  // a student variable with one of those names already keeps it and the helper moves.
 ].flatMap((line) => line.split(','));
 
 /**

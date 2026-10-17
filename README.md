@@ -22,6 +22,8 @@ pnpm preview        # serve dist/
 pnpm test:e2e       # Playwright smoke (Chromium) against a fresh build served by `vite preview`
 ```
 
+Vitest caches transformed modules in `node_modules/.vitest-cache`; `vitest.config.ts` keeps modules that use `import.meta.glob` (the golden harness) out of it so new fixtures are picked up. If a test still sees a stale file list, run `pnpm exec vitest --clearCache`.
+
 First Playwright run: `pnpm exec playwright install chromium` (on Linux/CI: `pnpm exec playwright install chromium --with-deps`).
 
 Placeholder PWA icons are generated with `python3 scripts/make-placeholder-icons.py` (standard library only).

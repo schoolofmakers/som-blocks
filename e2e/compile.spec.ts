@@ -32,6 +32,42 @@ test('the server address can be changed from the settings popover', async ({ pag
   );
 });
 
+// The flake behind #32: opening a <details> queues its `toggle` event as a separate task,
+// and Chrome may handle the following input events (typing, Save) first. Open, type and
+// Save inside one task here so `toggle` always arrives after Save — deterministically.
+test('Save closes the settings popover even when its toggle event arrives late', async ({
+  page,
+}) => {
+  await page.goto('/?lang=en');
+  const input = page.getByLabel('Compile server address');
+  await expect(input).toBeAttached();
+  const toggles = await page.evaluate(async () => {
+    const microtasks = () => new Promise<void>((resolve) => queueMicrotask(resolve));
+    const field = document.querySelector<HTMLInputElement>('details input[type="url"]');
+    const details = field?.closest('details');
+    const summary = details?.querySelector('summary');
+    const form = details?.querySelector('form');
+    if (!field || !details || !summary || !form) throw new Error('settings popover not found');
+    let toggleEvents = 0;
+    details.addEventListener('toggle', () => toggleEvents++);
+
+    summary.click();
+    await microtasks(); // let React commit, but do not yield to the queued `toggle` task
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setValue?.call(field, 'https://late-toggle.example.cl');
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    await microtasks();
+    form.requestSubmit();
+    await microtasks();
+    return toggleEvents;
+  });
+  expect(toggles).toBe(0); // the precondition: Save ran before any `toggle`
+  await expect(input).toBeHidden();
+  expect(await page.evaluate(() => window.localStorage.getItem('som.compileServerUrl'))).toBe(
+    'https://late-toggle.example.cl',
+  );
+});
+
 test('the settings popover stays inside a phone-width viewport', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
   await page.goto('/?lang=en');
