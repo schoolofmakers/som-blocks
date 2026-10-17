@@ -142,10 +142,13 @@ export const mathFamily: BlockFamily = {
       if (op === 'DIVIDE') {
         // Blockly divides like a calculator (7 / 2 = 3.5); C++ would truncate two integers.
         b = INTEGER_LITERAL.test(b) ? `${b}.0` : `(double)${b}`;
-      } else if (INTEGER_LITERAL.test(a) && INTEGER_LITERAL.test(b)) {
-        // Two integer literals are C++ `int`s: 300 * 300 overflows AVR's 16-bit int. One
-        // double operand makes the whole calculation double, like every number variable.
+      } else if (INTEGER_LITERAL.test(a)) {
+        // An integer literal is a C++ `int`, and so are some Arduino results (String
+        // length…): 300 * 300 overflows AVR's 16-bit int. A double literal makes the whole
+        // calculation double, like every number variable.
         a = `${a}.0`;
+      } else if (INTEGER_LITERAL.test(b)) {
+        b = `${b}.0`;
       }
       return [`${a}${operator}${b}`, order];
     },

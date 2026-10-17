@@ -324,6 +324,19 @@ describe('generator edge cases', () => {
       }),
     ]);
     expect(code).toContain('n = 300.0 * 300;');
+
+    // An int-valued Arduino result (String::length) times a literal stays double too.
+    const mixed = generateCode([
+      set('n', {
+        type: 'math_arithmetic',
+        fields: { OP: 'MULTIPLY' },
+        inputs: {
+          A: { block: { type: 'text_length', inputs: { VALUE: { block: text('abc') } } } },
+          B: { block: num(300) },
+        },
+      }),
+    ]);
+    expect(mixed).toContain('n = String("abc").length() * 300.0;');
   });
 
   it('orders random bounds: literal ones now, computed ones in a helper', () => {
