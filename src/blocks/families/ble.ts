@@ -25,9 +25,9 @@ import type { BlockFamily } from '../types';
 //     iOS/Android) by itself and marks the BLE2902 class deprecated. The sketch adds it by
 //     hand only under Bluedroid (classic ESP32): `#if defined(CONFIG_BLUEDROID_ENABLED)`.
 //   - onWrite runs in the Bluetooth task, not in loop(): it only copies the value into
-//     `somBleLast` (under a mutex) and counts the write. Student blocks never run there; each
-//     `when a message arrives` block keeps its own count and fires once in loop() per new
-//     write (several writes between two loops fire once; `message received` is the last one).
+//     `somBleLast` and counts the write, both under one mutex that loop() also takes to read
+//     them. Student blocks never run there; each `when a message arrives` block keeps its own
+//     count and fires once in loop() per new write (several writes between two loops fire once; `message received` is the last one).
 //   - Notify before a phone subscribes, or before `start Bluetooth`, does nothing.
 //   - On disconnect the server callbacks start advertising again, so the phone can reconnect.
 //   - The name is cut to 29 bytes (what fits in the scan response) when the code is generated,
@@ -55,7 +55,7 @@ const char *const SOM_BLE_CHARACTERISTIC_UUID = "${BLE_CHARACTERISTIC_UUID}";
 BLEServer *somBleServer = nullptr;
 BLECharacteristic *somBleChar = nullptr;
 String somBleLast = "";
-volatile uint32_t somBleWrites = 0;
+uint32_t somBleWrites = 0;  // guarded by somBleLock, like somBleLast
 std::mutex somBleLock;
 
 class SomBleServerCallbacks : public BLEServerCallbacks {
@@ -70,7 +70,7 @@ class SomBleWriteCallbacks : public BLECharacteristicCallbacks {
     String value = characteristic->getValue();
     std::lock_guard<std::mutex> lock(somBleLock);
     somBleLast = value;
-    somBleWrites = somBleWrites + 1;
+    somBleWrites++;
   }
 };
 
@@ -107,6 +107,7 @@ String somBleReceived() {
 }
 
 bool somBleArrived(uint32_t &seen) {
+  std::lock_guard<std::mutex> lock(somBleLock);
   uint32_t writes = somBleWrites;
   if (writes == seen) return false;
   seen = writes;

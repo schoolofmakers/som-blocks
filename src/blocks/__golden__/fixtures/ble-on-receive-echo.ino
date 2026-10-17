@@ -10,7 +10,7 @@ const char *const SOM_BLE_CHARACTERISTIC_UUID = "23a10002-d184-4b51-b408-93dca56
 BLEServer *somBleServer = nullptr;
 BLECharacteristic *somBleChar = nullptr;
 String somBleLast = "";
-volatile uint32_t somBleWrites = 0;
+uint32_t somBleWrites = 0;  // guarded by somBleLock, like somBleLast
 std::mutex somBleLock;
 
 class SomBleServerCallbacks : public BLEServerCallbacks {
@@ -25,7 +25,7 @@ class SomBleWriteCallbacks : public BLECharacteristicCallbacks {
     String value = characteristic->getValue();
     std::lock_guard<std::mutex> lock(somBleLock);
     somBleLast = value;
-    somBleWrites = somBleWrites + 1;
+    somBleWrites++;
   }
 };
 
@@ -62,6 +62,7 @@ String somBleReceived() {
 }
 
 bool somBleArrived(uint32_t &seen) {
+  std::lock_guard<std::mutex> lock(somBleLock);
   uint32_t writes = somBleWrites;
   if (writes == seen) return false;
   seen = writes;
