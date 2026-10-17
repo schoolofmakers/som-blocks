@@ -119,6 +119,23 @@ describe('flash store upload()', () => {
     expect(useSerialStore.getState().muted).toBe(false);
   });
 
+  it('a baud change during the flash waits for the port to come back', async () => {
+    await useSerialStore.getState().start(transport);
+    h.flash.mockImplementation(async () => {
+      await useSerialStore.getState().setBaud(9600);
+      transport.events.push('flash done');
+    });
+    await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
+    useSerialStore.getState().stop();
+    // No open while the flasher owned the port; one reopen at the new baud afterwards.
+    expect(transport.events.slice(1)).toEqual(['flash done', 'close', 'open 9600']);
+    expect(useTransportStore.getState()).toMatchObject({
+      status: 'connected',
+      transport,
+      baudRate: 9600,
+    });
+  });
+
   it("reopens at the serial monitor's baud through the transport store", async () => {
     useSerialStore.setState({ baud: 9600 });
     await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });

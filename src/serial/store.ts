@@ -116,7 +116,10 @@ export const useSerialStore = create<SerialState>()((set, get) => {
   const applyBaud = (): Promise<void> => {
     baudChain = baudChain.then(async () => {
       const transportStore = useTransportStore.getState();
-      const { baud } = get();
+      const { baud, muted } = get();
+      // While muted a flasher owns the port: reopening now would fail and end the connection.
+      // The flash store reopens at the latest `baud` when it gives the port back (B8).
+      if (muted) return;
       if (current && transportStore.transport === current && transportStore.baudRate !== baud) {
         await transportStore.reopen(baud);
       }
