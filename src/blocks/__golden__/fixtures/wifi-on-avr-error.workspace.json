@@ -1,0 +1,23 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_wifi_connect",
+        "id": "connect",
+        "x": 20,
+        "y": 20,
+        "fields": { "SSID": "SoM-Aula", "PASSWORD": "maker2026" },
+        "next": {
+          "block": {
+            "type": "som_serial_println",
+            "id": "print-ip",
+            "inputs": {
+              "VALUE": { "block": { "type": "som_wifi_ip", "id": "ip" } }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

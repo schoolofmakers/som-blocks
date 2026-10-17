@@ -1,0 +1,62 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_wifi_connect",
+        "id": "connect",
+        "x": 20,
+        "y": 20,
+        "fields": { "SSID": "SoM-Aula", "PASSWORD": "maker2026" },
+        "next": {
+          "block": {
+            "type": "som_serial_println",
+            "id": "print-get",
+            "inputs": {
+              "VALUE": {
+                "block": {
+                  "type": "som_wifi_http_get",
+                  "id": "get",
+                  "inputs": {
+                    "URL": {
+                      "block": {
+                        "type": "text",
+                        "fields": { "TEXT": "https://example.com/hola.txt" }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "next": {
+              "block": {
+                "type": "som_serial_println",
+                "id": "print-post",
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "som_wifi_http_post",
+                      "id": "post",
+                      "fields": { "TYPE": "application/json" },
+                      "inputs": {
+                        "BODY": {
+                          "block": { "type": "text", "fields": { "TEXT": "{\"luz\": 1}" } }
+                        },
+                        "URL": {
+                          "block": {
+                            "type": "text",
+                            "fields": { "TEXT": "http://example.com/datos" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

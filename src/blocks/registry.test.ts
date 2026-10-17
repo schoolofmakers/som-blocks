@@ -46,6 +46,20 @@ describe('registerFamily', () => {
     expect(Blockly.Blocks['hijack_block']).toBeUndefined();
   });
 
+  it('registers family extensions and refuses one already registered', () => {
+    expect(Blockly.Extensions.isRegistered('som_wifi_tooltip')).toBe(true);
+    const clash: BlockFamily = {
+      id: 'clash',
+      blocks: [{ type: 'clash_block', message0: 'x' }],
+      generators: { clash_block: () => '' },
+      toolbox: [],
+      messages: { es: {}, en: {} },
+      extensions: { som_wifi_tooltip: () => undefined },
+    };
+    expect(() => registerFamily(clash)).toThrow(/Extension "som_wifi_tooltip"/);
+    expect(Blockly.Blocks['clash_block']).toBeUndefined();
+  });
+
   it('refuses a block without a generator', () => {
     const broken: BlockFamily = {
       id: 'broken',
@@ -177,6 +191,7 @@ describe('buildToolbox', () => {
       '%{BKY_SOM_IO_CATEGORY}',
       '%{BKY_SOM_TIME_CATEGORY}',
       '%{BKY_SOM_SERIAL_CATEGORY}',
+      '%{BKY_SOM_WIFI_CATEGORY}',
     ]);
     expect(categories('starter')).toEqual(categories());
   });
@@ -193,6 +208,7 @@ describe('buildToolbox', () => {
       '%{BKY_SOM_IO_CATEGORY}',
       '%{BKY_SOM_TIME_CATEGORY}',
       '%{BKY_SOM_SERIAL_CATEGORY}',
+      '%{BKY_SOM_WIFI_CATEGORY}',
       '%{BKY_SOM_BLE_CATEGORY}',
       '%{BKY_SOM_RAW_CATEGORY}',
     ]);
