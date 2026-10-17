@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { BlocklyWorkspace } from './blocks/BlocklyWorkspace';
 import { BoardPicker } from './boards/BoardPicker';
 import { useBoardStore } from './boards/store';
+import { CodeView } from './codeview/CodeView';
 import { CompileButton } from './compile/CompileButton';
 import { LogPanel } from './compile/LogPanel';
 import { ServerSettings } from './compile/ServerSettings';
@@ -60,17 +61,8 @@ export function App({ lang = DEFAULT_LANG }: AppProps) {
             className="min-h-[60dvh] flex-1 rounded-lg border border-border bg-surface"
           />
         )}
-        {/* Minimal read-only preview; the real code view (copy/download) is B12. */}
         <section aria-labelledby="generated-code-title" className="flex flex-col lg:w-96">
-          <h2 id="generated-code-title" className="mb-2 text-sm font-semibold text-muted">
-            {t('UI_GENERATED_CODE', lang)}
-          </h2>
-          <pre
-            data-testid="generated-code"
-            className="flex-1 overflow-auto rounded-lg border border-border bg-surface p-3 font-mono text-xs"
-          >
-            {code}
-          </pre>
+          <CodeView code={code} lang={lang} />
           <LogPanel lang={lang} />
         </section>
       </main>
