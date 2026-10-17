@@ -25,11 +25,11 @@ C1. `wifi` family: connect to network, IP, HTTP GET/POST simple blocks (golden t
 C2. `espnow` family per the name-based broadcast model in `_config/architecture.md`: my name is / send to / send to everyone / when message arrives from. Two-board classroom demo as evidence.
 C3. `ble` family (BLE only): advertise name, notify value, on write; phone-visible via nRF Connect as evidence.
 
-## Track D — mobile path over WiFi (after B7/B8, C1)
-D1. `server/relay`: Hono + WebSocket service; device register/claim by code, build upload + download, serial up/down; fly.toml; tests with a fake device.
-D2. `firmware/resident`: SoM resident firmware for the C3 factory partition (WiFi provisioning over USB serial + captive portal fallback, relay link, OTA into `ota_0`, claim code, BOOT-press recovery); partition table; flash-once script. Evidence: video of an OTA from the relay.
-D3. `firmware/SomLink` Arduino library linked by the generator into every C3 sketch (relay link + OTA + serial bridge kept alive); golden tests show the include + setup/loop hooks.
-D4. `RelayTransport` + relay OTA flasher with progress in the editor; works from Android Chrome and iOS Safari. Evidence: phone video uploading a sketch over WiFi.
+## Track D — WiFi path (decisions 2026-10-17, spec in `_config/architecture.md` → Track D)
+D1. `server/relay`: Hono HTTP relay (long-poll + SSE, bearer tokens hashed, in-memory TTL stores, limits) + fly.toml + tests with a fake device; protocol v1 as specified.
+D2. `firmware/resident`: Arduino sketch for the C3 factory partition — Improv Wi-Fi over BLE + serial, pairing token in NVS, relay register/long-poll, OTA via `Update`, serial bridge, LED patterns, long-BOOT reset. Compiles on our compile server; flashed over USB from the editor.
+D3. `firmware/SomLink`: Arduino library linked by the generator into OTA-flagged projects (same relay client, runs beside the student's sketch); size measured and recorded.
+D4. Editor: Improv provisioning UI (BLE/serial via the Improv SDKs), pairing storage, `RelayTransport`, `RelayOtaFlasher`, "sube por WiFi" project flag; works from Android Chrome and (upload/monitor) iOS Safari. Evidence: phone video.
 D5. Mobile layout pass for Blockly (touch targets, toolbox drawer, zoom controls).
 
 ## Explicitly out of v1

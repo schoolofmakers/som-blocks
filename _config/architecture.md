@@ -16,17 +16,56 @@ Static single-page editor (Vite/TS/Blockly) → HTTPS JSON → compile server (d
 ## Transports (how the browser reaches a board)
 One `Transport` interface (`open/close/write/onData`) with two implementations; flashers and the serial monitor only see the interface.
 - `WebSerialTransport` — USB on desktop Chrome/Edge (Web Serial). Not available on any mobile browser. Fast path and rescue path.
-- `RelayTransport` — WiFi, through our relay service (below). Works from ANY browser including iOS Safari, because the page only talks HTTPS to our server; the board talks to the same server. This is the mobile path.
+- `RelayTransport` — WiFi, through our relay service (Track D below). Works from ANY browser including iOS Safari for upload/monitor, because the page only talks HTTPS to our server; the board talks to the same server. Provisioning the board's WiFi needs Web Bluetooth (Android Chrome) or Web Serial (desktop).
 Browser support is shown on the connect screen; unsupported combinations get an explicit message, never a silent failure.
 
-## Over-the-air upload to the ESP32-C3 over WiFi (decision 2026-10-16, replaces an earlier BLE idea)
-Why a relay and not direct LAN: the editor is served over HTTPS, and browsers block an HTTPS page from calling `http://192.168.x.x` (mixed content + Private Network Access). So the phone cannot POST firmware to the board directly. The board pulls instead.
-- **Relay service** (`server/relay`, our code, MIT, tiny Node/Hono): the board keeps a WebSocket to it; the editor calls it over HTTPS. Endpoints: device registers with a claim code; editor claims a device by code; editor posts a build id → relay tells the board → board downloads the image over HTTPS from the relay and flashes it with `Update`; board streams serial lines up and accepts lines down (monitor over WiFi).
-- **SoM resident firmware** on the C3 `factory` partition: WiFi provisioning (credentials entered once over USB from the editor, or via a captive portal on first boot), relay connection, OTA receive into `ota_0`, claim code shown in the serial monitor and derivable from the MAC. Long BOOT-press reboots to `factory` as recovery.
-- **`SomLink` library** linked by the generator into every C3 sketch: keeps the relay connection + OTA + serial bridge alive inside the student's program, so the next upload from the phone works without touching USB.
-- Flow from a phone: compile on the compile server → editor posts the image to the relay as a build → relay notifies the claimed board → board downloads (~200–400 KB in a few seconds on WiFi) → verifies → reboots into the new sketch. Progress and the board's serial output appear in the editor.
-- Requires the board to be on a WiFi network with internet (school WiFi or a phone hotspot). Offline-lab variant: when the editor itself is served over plain HTTP on a lab laptop (local Docker setup), a direct `http://<board-ip>/update` push is allowed by the browser and can be offered as a shortcut; same board firmware.
-- Bluetooth is not used for upload. BLE remains available as a *block family* for student projects (C3 is BLE-only, no Classic).
+## Track D — WiFi provisioning, pairing and over-the-air upload (decisions 2026-10-17)
+
+### Provisioning (how a board learns the WiFi) — ticket #39
+- **Improv Wi-Fi** (improv-wifi.com, Apache-2.0 spec + SDKs), both transports from the same firmware:
+  - **Phone:** Improv over **BLE** via Web Bluetooth (Android Chrome; not iOS Safari — iOS phones use a board someone else provisioned, or a desktop).
+  - **Desktop:** Improv over **serial** via Web Serial (USB), the same cable used to flash.
+- The editor's connect screen gets a "Conectar a WiFi" step that runs the Improv flow (scan is optional; SSID + password typed or chosen), shows the state the firmware reports (authorizing → provisioning → provisioned), and reads the **provisioned URL** the firmware returns.
+- No captive portal in v1.
+
+### Pairing (who may push firmware to which board) — ticket #38
+- The firmware generates a **pairing token** (32 random bytes, hex) at first boot, keeps it in NVS, and exposes it only through a physical channel: the Improv *provisioned URL* (`https://<editor>/pair?device=<deviceId>&token=<token>`) returned at the end of provisioning over BLE or USB. Physical access (BLE range or cable) is the trust boundary; re-provisioning rotates nothing by default, "Olvidar placa" on the board (long BOOT press) regenerates the token.
+- `deviceId` = the chip's base MAC, lower-case hex without separators. The editor stores `{deviceId, token, name}` per project in IndexedDB; the relay only ever sees a hash of the token.
+- Any editor that presents the token can push to that board; there are no accounts in v1.
+
+### SomLink linking policy — ticket #40
+- SomLink (the in-sketch WiFi/OTA/serial-bridge client) is linked **only into projects flagged "sube por WiFi"**; USB-only projects stay as they are. Flash budget: WiFi HTTPS sketches already reach 84% of the default 1.25 MB OTA slot, so an OTA-flagged project that does not fit shows a clear "demasiado grande para subir por WiFi" error from the compile step (the server log has the size), never a silent failure. Measure SomLink's cost in D3 and record it in `_config/boards.md`.
+- Partition scheme stays `default` (two OTA slots) for OTA projects; a bigger single-slot layout is out of v1.
+
+### Relay service (`server/relay`, Fly.io `gru`, our code, MIT) — ticket #41
+Why a relay: an HTTPS page cannot call `http://192.168.x.x` (mixed content + Private Network Access), so the board pulls from the relay instead of the editor pushing to the board.
+**Transport choice:** plain HTTPS with long-polling on the board side and Server-Sent Events on the editor side. No WebSocket on the board (the common Arduino WebSocket libraries are LGPL and the ESP-IDF client is not in the Arduino core); firmware download uses the core's `HTTPUpdate`/`Update` over `NetworkClientSecure` (`setInsecure()` to the relay, same classroom trade-off as C1).
+
+Protocol **v1** (all JSON unless noted; `Authorization: Bearer <token>` on every device and editor call; the relay stores `sha256(token)` per device):
+- Device → relay
+  - `POST /v1/devices/{deviceId}/register` `{ fw: string, name: string, chip: "esp32c3" }` → `204`. Sent on every boot and after every WiFi reconnect; first call creates the device record.
+  - `GET /v1/devices/{deviceId}/next?wait=25` → `204` after `wait` seconds with nothing, or `200 { buildId, size, sha256 }` when a build is queued (long poll; the device loops on it).
+  - `GET /v1/builds/{buildId}/image` → `application/octet-stream` (the app image for `ota_0/ota_1`), `Content-Length` set; the device streams it into `Update`.
+  - `POST /v1/devices/{deviceId}/status` `{ buildId, state: "downloading"|"flashing"|"rebooting"|"running"|"failed", detail? }` → `204`.
+  - `POST /v1/devices/{deviceId}/serial` `{ lines: string[] }` (board output, batched ≤ 50 lines / 500 ms) → `204`.
+  - `GET /v1/devices/{deviceId}/input?wait=25` → `204` or `200 { lines: string[] }` (text the student typed in the monitor).
+- Editor → relay
+  - `GET /v1/devices/{deviceId}` → `{ online: boolean, lastSeen, fw, name }`.
+  - `POST /v1/devices/{deviceId}/builds` (body: the raw app image, `Content-Type: application/octet-stream`, header `X-Image-Sha256`) → `201 { buildId }`. Max 2 MB; one pending build per device (a new one replaces it).
+  - `GET /v1/devices/{deviceId}/events` → **SSE** stream: `online`, `offline`, `status {buildId,state,detail}`, `serial {lines}`.
+  - `POST /v1/devices/{deviceId}/input` `{ line }` → `204`.
+- Storage: in-memory with TTLs (builds 10 min, device records 24 h, serial ring 500 lines); a relay restart loses nothing a device cannot recreate by re-registering. Limits: 60 req/min per device, 10 builds/h per device, image ≤ 2 MB. Health: `GET /healthz`.
+- Hosting: Fly app `som-relay`, region `gru`, `auto_stop_machines = off` (long polls), one shared-cpu machine; `fly.toml` in `server/relay`.
+
+### Resident firmware (`firmware/resident`, Arduino sketch for the C3, built by our own compile server) — ticket #42
+- Lives in the **factory** partition (`default` scheme). Implements Improv BLE + Improv serial, WiFi connect with stored credentials, pairing token, relay register + long-poll loop, OTA into the next slot via `Update`, serial bridge (relay ↔ USB-CDC), status LED patterns (GPIO 8 active-low: breathing = waiting for WiFi, double blink = online, fast = flashing). Long BOOT press (≥ 5 s) = forget WiFi + regenerate token; BOOT at reset = ROM download mode (unchanged).
+- First flash of the resident firmware happens over USB from the editor (a "Preparar placa para WiFi" action) or pre-flashed on boards SoM hands out.
+
+### SomLink library (`firmware/SomLink`, Arduino library) — ticket #43
+- Linked by the generator into OTA-flagged sketches: `#include <SomLink.h>`, `SomLink.begin()` in setup (uses the stored WiFi + token from NVS, registers, starts the long-poll on a FreeRTOS task), `SomLink.loop()` not required. Keeps the board updatable and its `Serial` output mirrored to the relay while the student's program runs. Measured size goes into `_config/boards.md`.
+
+### Editor side (`src/transport/relay*.ts`, `src/flash/relay-ota.ts`, provisioning UI) — ticket #44
+- `RelayTransport` implements the `Transport` interface over SSE (down) + `POST /input` (up) so the serial monitor works unchanged. `RelayOtaFlasher` implements `Flasher`: POST the compiled app image, then follow `status` events to drive the progress bar. Provisioning UI uses the Improv JS SDKs (BLE on Android Chrome, serial on desktop) and stores the pairing from the provisioned URL.
 
 ## Upload paths (browser, USB)
 - AVR (UNO, NANO old bootloader, future SoM NANO-C): `avrgirl-arduino` browser build (MIT), stk500v1 over Web Serial. Needs `window.Buffer` (buffer@6) and `window.process` (process@0.11) injected before load. Board profile `uno` / `nano`.
