@@ -15,6 +15,13 @@ photo/video) for each row in the PR.
 - Sketch: a blink on the board's LED (C3: GPIO 8, active-low; NANO: D13), plus a
   `Serial.println("hola")` in `setup()` so the boot is visible.
 
+## Acceptance criterion (Mr.Maker)
+
+After an upload, on both paths (AVR and ESP), the board **stays connected**: the header reads
+**Conectada** and the serial monitor receives the board's output from the new program at the
+monitor's baud. The connection ends only when the student presses **Desconectar**. An upload
+that ends in **Sin conexión** fails this check even if the program was written.
+
 ## Happy path (each board)
 
 1. Pick the board in **Placa**, press **Conectar** → **Conectar por USB**, choose the port.
@@ -22,6 +29,8 @@ photo/video) for each row in the PR.
 3. Press **Subir**. The bar goes through the phases and ends on
    "¡Listo! Tu programa ya está en la placa." The header still says **Conectada**.
 4. The LED blinks with the new program.
+5. Without reconnecting, open the serial monitor: `hola` (and later output) arrives, and the
+   header still reads **Conectada** (acceptance criterion above).
 
 Expected lines in the log panel, in order. These come from the libraries' source, not from a
 recorded run yet: wording may differ slightly and numbers vary.

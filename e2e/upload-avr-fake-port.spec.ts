@@ -34,6 +34,8 @@ test.beforeEach(async ({ page }) => {
     let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
     let address = 0;
     let syncsSinceReset = 0;
+    let programmed = false;
+    let printer: ReturnType<typeof setInterval> | undefined;
     const hex = (bytes: ArrayLike<number>) =>
       Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join(' ');
     const port = Object.assign(new EventTarget(), {
@@ -43,12 +45,22 @@ test.beforeEach(async ({ page }) => {
       async setSignals(signals: { dataTerminalReady?: boolean }) {
         if (signals.dataTerminalReady) syncsSinceReset = 0;
       },
-      async open() {
+      async open({ baudRate }: { baudRate: number }) {
         if (port.readable) throw new DOMException('The port is already open.', 'InvalidStateError');
         syncsSinceReset = 0;
         port.readable = new ReadableStream<Uint8Array>({
           start(c) {
             controller = c;
+            // Once programmed, the board runs the new sketch: it prints at 115200.
+            if (programmed && baudRate === 115200) {
+              printer = setInterval(() => {
+                try {
+                  c.enqueue(new TextEncoder().encode('programa: hola\r\n'));
+                } catch {
+                  // Closed.
+                }
+              }, 100);
+            }
           },
         });
         port.writable = new WritableStream<Uint8Array>({
@@ -67,6 +79,8 @@ test.beforeEach(async ({ page }) => {
               address = ((cmd[1] ?? 0) | ((cmd[2] ?? 0) << 8)) * 2;
             } else if (cmd[0] === 0x64) {
               for (let i = 0; i < length; i++) flash.set(address + i, cmd[4 + i] ?? 0xff);
+            } else if (cmd[0] === 0x51) {
+              programmed = true; // LEAVE_PROGMODE: the bootloader starts the sketch
             } else if (cmd[0] === 0x74) {
               const data = Array.from({ length }, (_, i) => flash.get(address + i) ?? 0xff);
               reply = [0x14, ...data, 0x10];
@@ -85,6 +99,7 @@ test.beforeEach(async ({ page }) => {
         if (port.readable?.locked || port.writable?.locked) {
           throw new TypeError('Cannot close a port with locked streams.');
         }
+        clearInterval(printer);
         // Chrome's close() took ~0.5 s on the real NANO.
         await new Promise((resolve) => setTimeout(resolve, 300));
         try {
@@ -153,6 +168,11 @@ test('uploads to a NANO through the real avrgirl classic script, late first sync
   await expect(page.getByTestId('connect-status')).toHaveText('Conectada');
   await expect(page.getByTestId('compile-log')).toContainText('flash complete.');
   await expect(page.getByTestId('compile-log')).not.toContainText('did not reopen');
+  // Acceptance (Mr.Maker): the board stays connected after the upload and the monitor
+  // receives what the new program prints, at the monitor's baud.
+  await page.getByTestId('serial-panel-toggle').click();
+  await expect(page.getByTestId('serial-terminal')).toContainText('programa: hola');
+  await expect(page.getByTestId('connect-status')).toHaveText('Conectada');
 
   const stk = await page.evaluate(() => {
     const w = window as unknown as {

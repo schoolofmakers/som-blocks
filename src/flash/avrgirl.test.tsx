@@ -220,7 +220,10 @@ describe('avrgirlFlasher.flash', () => {
   it("an error swallowed by avrgirl's read loop fails the flash at once, not after 60 s", async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     h.debugLines = ['connected', 'reset complete.'];
-    h.swallowed = new ReferenceError('match is not defined');
+    const swallowed = new ReferenceError('match is not defined');
+    swallowed.stack = `ReferenceError: match is not defined
+    at verifySignature (https://example.cl/assets/avrgirl-arduino.global.min-D55aAOpg.js:2:1)`;
+    h.swallowed = swallowed;
     const started = performance.now();
     await expect(run().promise).rejects.toMatchObject({
       code: 'sync-failed',
@@ -299,20 +302,39 @@ describe('upload end to end with a slow port close (real NANO: ~0.5 s)', () => {
 });
 
 describe('watchConsoleErrors', () => {
-  it('reports Errors and "Unexpected error:" lines, still logs, and unhooks', () => {
+  const fromAvrgirl = (message: string) => {
+    const error = new TypeError(message);
+    error.stack = `TypeError: ${message}\n    at r (http://x/assets/avrgirl-arduino.global.min-abc.js:1:2)`;
+    return error;
+  };
+
+  it('reports avrgirl errors and "Unexpected error:" lines, still logs, and unhooks', () => {
     const logged: unknown[][] = [];
     const original = console.error;
     console.error = (...args: unknown[]) => logged.push(args);
     const seen: unknown[] = [];
     const unhook = watchConsoleErrors((error) => seen.push(error));
-    const boom = new TypeError('boom');
+    const boom = fromAvrgirl('boom');
     console.error(boom);
     console.error('Unexpected error: x');
     console.error('just text');
     unhook();
-    console.error(new Error('after'));
+    console.error(fromAvrgirl('after'));
     expect(seen).toEqual([boom, 'Unexpected error: x']);
     expect(logged).toHaveLength(4);
+    console.error = original;
+  });
+
+  it('ignores errors other code on the page logs during the upload', () => {
+    const original = console.error;
+    console.error = () => {};
+    const seen: unknown[] = [];
+    const unhook = watchConsoleErrors((error) => seen.push(error));
+    // e.g. the serial panel's lazy chunk failing to load
+    console.error('serial panel failed to load', fromAvrgirl('chunk'));
+    console.error(new Error('a component somewhere'));
+    unhook();
+    expect(seen).toEqual([]);
     console.error = original;
   });
 });

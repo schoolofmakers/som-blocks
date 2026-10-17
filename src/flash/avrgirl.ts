@@ -229,21 +229,34 @@ export const avrgirlFlasher: Flasher = {
   },
 };
 
+/** Where avrgirl's code runs from: the injected classic-script asset. */
+const AVRGIRL_SOURCE = /avrgirl-arduino/;
+
 /**
- * Calls `onError` for every Error passed to `console.error` until the returned function is
- * called (which restores the previous `console.error`, if nobody replaced it meanwhile).
- * Everything is still logged as before.
+ * True for what avrgirl's read loop logs when a data handler throws: `console.error(e)` with
+ * the Error as the only argument, thrown from avrgirl's own code (its stack points into the
+ * avrgirl-arduino script). Errors other code on the page logs meanwhile (a lazy chunk that
+ * failed to load, a component) do not match, so they never stop a working upload.
+ */
+export function isAvrgirlError(args: readonly unknown[]): boolean {
+  if (args.length !== 1) return false;
+  const [arg] = args;
+  if (typeof arg === 'string') return /^Unexpected error:/.test(arg);
+  if (typeof arg !== 'object' || arg === null || !('message' in arg)) return false;
+  const stack = (arg as { stack?: unknown }).stack;
+  return typeof stack === 'string' && AVRGIRL_SOURCE.test(stack);
+}
+
+/**
+ * Calls `onError` for every avrgirl error (`isAvrgirlError`) passed to `console.error` until the
+ * returned function is called (which restores the previous `console.error`, if nobody replaced
+ * it meanwhile). Everything is still logged as before.
  */
 export function watchConsoleErrors(onError: (error: unknown) => void): () => void {
   const previous = console.error;
   const hook = (...args: unknown[]) => {
     previous.apply(console, args);
-    const error = args.find(
-      (arg) =>
-        (typeof arg === 'object' && arg !== null && 'message' in arg && 'name' in arg) ||
-        (typeof arg === 'string' && /^Unexpected error:/.test(arg)),
-    );
-    if (error !== undefined) onError(error);
+    if (isAvrgirlError(args)) onError(args[0]);
   };
   console.error = hook;
   return () => {
