@@ -1,0 +1,56 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_ble_start",
+        "id": "start",
+        "x": 20,
+        "y": 20,
+        "fields": { "NAME": "SoM Ñandú" },
+        "next": {
+          "block": {
+            "type": "som_time_every",
+            "id": "every",
+            "inputs": {
+              "MS": { "block": { "type": "math_number", "fields": { "NUM": "1000" } } },
+              "DO": {
+                "block": {
+                  "type": "controls_if",
+                  "id": "if",
+                  "inputs": {
+                    "IF0": { "block": { "type": "som_ble_connected", "id": "connected" } },
+                    "DO0": {
+                      "block": {
+                        "type": "som_ble_send",
+                        "id": "send_ms",
+                        "inputs": {
+                          "VALUE": { "block": { "type": "som_time_millis", "id": "now" } }
+                        },
+                        "next": {
+                          "block": {
+                            "type": "som_ble_send",
+                            "id": "send_text",
+                            "inputs": {
+                              "VALUE": {
+                                "block": {
+                                  "type": "text",
+                                  "id": "hola",
+                                  "fields": { "TEXT": "hola" }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

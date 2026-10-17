@@ -131,3 +131,36 @@ test('hardware categories come before Código; the board LED block generates pin
   await expect(code).toContainText('pinMode(13, OUTPUT);');
   await expect(code).toContainText('digitalWrite(13, HIGH);');
 });
+
+test('Bluetooth is a full-toolbox category; its start block generates the BLE helpers', async ({
+  page,
+}) => {
+  await page.goto('/?lang=es');
+  await expect(page.getByRole('treeitem', { name: 'Puerto Serie' })).toBeVisible();
+  await expect(page.getByRole('treeitem', { name: 'Bluetooth' })).toHaveCount(0);
+
+  await page.goto('/?lang=es&toolbox=full');
+  await page.getByRole('treeitem', { name: 'Bluetooth' }).click();
+  // First flyout block is `iniciar Bluetooth con el nombre [mi placa]`.
+  const flyoutBlock = page.locator('.blocklyFlyout .blocklyDraggable').first();
+  await expect(flyoutBlock).toBeVisible();
+  const workspace = page.locator('.blocklyMainBackground');
+  const target = await workspace.boundingBox();
+  const source = await flyoutBlock.boundingBox();
+  if (!target || !source) throw new Error('workspace or flyout block has no box');
+  await page.mouse.move(source.x + 10, source.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  // Default board is the C3: BLE code, no #error.
+  const code = page.getByTestId('generated-code');
+  await expect(code).toContainText('#include <BLEDevice.h>');
+  await expect(code).toContainText('somBleStart("mi placa");');
+  await expect(code).not.toContainText('#error');
+
+  // On the UNO the same block fails the compile with a translated message.
+  await page.getByRole('combobox', { name: 'Placa' }).selectOption('uno');
+  await expect(code).toContainText('#error "Bluetooth necesita una placa ESP32');
+  await expect(code).not.toContainText('BLEDevice.h');
+});

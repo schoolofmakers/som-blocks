@@ -1,0 +1,58 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_ble_start",
+        "id": "start",
+        "x": 20,
+        "y": 20,
+        "fields": { "NAME": "eco" },
+        "next": {
+          "block": {
+            "type": "som_ble_on_receive",
+            "id": "on_receive",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "type": "som_serial_println",
+                  "id": "print",
+                  "inputs": {
+                    "VALUE": { "block": { "type": "som_ble_received", "id": "received1" } }
+                  },
+                  "next": {
+                    "block": {
+                      "type": "som_ble_send",
+                      "id": "echo",
+                      "inputs": {
+                        "VALUE": {
+                          "block": {
+                            "type": "text_join",
+                            "id": "join",
+                            "extraState": { "itemCount": 2 },
+                            "inputs": {
+                              "ADD0": {
+                                "block": {
+                                  "type": "text",
+                                  "id": "t1",
+                                  "fields": { "TEXT": "eco: " }
+                                }
+                              },
+                              "ADD1": {
+                                "block": { "type": "som_ble_received", "id": "received2" }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

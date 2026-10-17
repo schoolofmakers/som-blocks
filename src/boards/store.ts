@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
-import { setPinProfile } from '../blocks/pins';
+import { setCurrentChip, setPinProfile } from '../blocks/pins';
 import { DEFAULT_BOARD_ID, getBoard, isBoardId } from './registry';
 
 export const BOARD_STORAGE_KEY = 'som.boardId';
@@ -60,9 +60,11 @@ export const useBoardStore = create<BoardState>()(
   ),
 );
 
-/** Keep the blocks' pin profile on the selected board (B4 dropdowns read it). */
+/** Keep the blocks' pin profile and chip on the selected board (B4 dropdowns, BLE gating). */
 function syncPinProfile(boardId: string): void {
-  setPinProfile(getBoard(boardId).pins);
+  const board = getBoard(boardId);
+  setPinProfile(board.pins);
+  setCurrentChip(board.chip);
 }
 
 syncPinProfile(useBoardStore.getState().boardId);

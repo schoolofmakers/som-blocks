@@ -157,7 +157,7 @@ describe('buildToolbox', () => {
     expect(categories('starter')).toEqual(categories());
   });
 
-  it('full adds lists and raw code, in toolbox order', () => {
+  it('full adds lists, Bluetooth and raw code, in toolbox order', () => {
     expect(categories('full').map((c) => c.name)).toEqual([
       '%{BKY_SOM_LOGIC_CATEGORY}',
       '%{BKY_SOM_CONTROL_CATEGORY}',
@@ -169,6 +169,7 @@ describe('buildToolbox', () => {
       '%{BKY_SOM_IO_CATEGORY}',
       '%{BKY_SOM_TIME_CATEGORY}',
       '%{BKY_SOM_SERIAL_CATEGORY}',
+      '%{BKY_SOM_BLE_CATEGORY}',
       '%{BKY_SOM_RAW_CATEGORY}',
     ]);
   });

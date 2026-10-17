@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { currentPinProfile } from '../blocks/pins';
+import { currentChip, currentPinProfile } from '../blocks/pins';
 import { DEFAULT_BOARD_ID, getBoard } from './registry';
 import { BOARD_STORAGE_KEY, safeLocalStorage, useBoardStore } from './store';
 
@@ -28,6 +28,9 @@ describe('board store', () => {
     expect(useBoardStore.getState().boardId).toBe('uno');
     expect(stored()).toEqual({ boardId: 'uno' });
     expect(currentPinProfile()).toBe(getBoard('uno').pins);
+    expect(currentChip()).toBe('avr');
+    useBoardStore.getState().setBoard('esp32c3-supermini');
+    expect(currentChip()).toBe('esp32c3');
   });
 
   it('ignores unknown ids', () => {

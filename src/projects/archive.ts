@@ -3,7 +3,7 @@ import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { version as APP_VERSION } from '../../package.json';
 import { arduinoGenerator } from '../blocks/arduino-generator';
 import { registerBuiltInFamilies } from '../blocks/index';
-import { currentPinProfile, setPinProfile } from '../blocks/pins';
+import { currentChip, currentPinProfile, setCurrentChip, setPinProfile } from '../blocks/pins';
 import { getBoard } from '../boards/registry';
 import { PROJECT_SCHEMA_VERSION, type Project } from './types';
 
@@ -68,11 +68,15 @@ function withHeadlessWorkspace<T>(state: unknown, run: (workspace: Blockly.Works
 /** The sketch the generator produces for a stored workspace on a given board. */
 export function generateSketch(workspace: unknown, boardId: string): string {
   const previous = currentPinProfile();
-  setPinProfile(getBoard(boardId).pins);
+  const previousChip = currentChip();
+  const board = getBoard(boardId);
+  setPinProfile(board.pins);
+  setCurrentChip(board.chip);
   try {
     return withHeadlessWorkspace(workspace, (ws) => arduinoGenerator.workspaceToCode(ws));
   } finally {
     setPinProfile(previous);
+    setCurrentChip(previousChip);
   }
 }
 

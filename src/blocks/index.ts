@@ -1,3 +1,4 @@
+import { bleFamily } from './families/ble';
 import { controlFamily } from './families/control';
 import { functionsFamily } from './families/functions';
 import { ioFamily } from './families/io';
@@ -24,6 +25,7 @@ export const BUILT_IN_FAMILIES: readonly BlockFamily[] = [
   ioFamily, // Entrada/Salida
   timeFamily, // Tiempo
   serialFamily, // Puerto Serie
+  bleFamily, // Bluetooth (full toolbox)
   rawFamily, // Código (always last, full toolbox)
 ];
 
