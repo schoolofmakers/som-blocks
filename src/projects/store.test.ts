@@ -271,6 +271,33 @@ describe('projects store', () => {
     expect((await memory.get(first))?.workspace).toEqual(RAW('unsaved();'));
   });
 
+  it('an edit made while a switch awaits IndexedDB is saved to the outgoing project', async () => {
+    const first = state().current!.id;
+    await state().create('Otro');
+    const second = state().current!.id;
+    await state().open(first);
+
+    const opening = state().open(second); // flush done, now awaiting the read
+    state().saveWorkspace(RAW('late();'));
+    await opening;
+    expect(state().current?.id).toBe(second);
+    await vi.waitFor(async () => expect((await stored(first))?.workspace).toEqual(RAW('late();')));
+    expect((await stored(second))?.workspace).toEqual({});
+  });
+
+  it('a failed delete keeps the pending autosave', async () => {
+    const memory = new MemoryProjectRepo();
+    resetProjectsStore();
+    await state().init({ repo: memory });
+    const id = state().current!.id;
+    vi.spyOn(memory, 'remove').mockRejectedValueOnce(new Error('blocked'));
+    state().saveWorkspace(RAW('keep();'));
+    await state().remove(id);
+    expect(state().notice).toEqual({ kind: 'save-failed' });
+    await state().flush();
+    expect((await memory.get(id))?.workspace).toEqual(RAW('keep();'));
+  });
+
   it('an import that cannot be stored keeps the save warning', async () => {
     vi.spyOn(MemoryProjectRepo.prototype, 'put').mockRejectedValue(new Error('quota'));
     resetProjectsStore();

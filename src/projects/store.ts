@@ -161,6 +161,14 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
   function activate(project: Project): void {
     const boardId = isBoardId(project.boardId) ? project.boardId : DEFAULT_BOARD_ID;
     const opened = { ...project, boardId };
+    // Edits made while the switch awaited IndexedDB belong to the outgoing project: write
+    // them before it is replaced (a failure lands in `unsaved`, so nothing is lost).
+    const outgoing = get().current;
+    if (dirty && outgoing && outgoing.id !== opened.id) {
+      clearAutosave();
+      void write({ ...outgoing, updatedAt: Date.now() });
+    }
+    dirty = false;
     loadCounter += 1;
     lastWritten.set(opened.id, JSON.stringify(opened.workspace));
     // `current` first: the board subscription below then sees no change to write back.
@@ -295,15 +303,19 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
     },
 
     remove: async (id) => {
-      clearAutosave();
       const wasCurrent = get().currentProjectId === id;
-      if (wasCurrent) dirty = false;
-      else await get().flush();
+      if (!wasCurrent) await get().flush();
       try {
         await repo.remove(id);
       } catch {
+        // Still open and still pending: the autosave state is left as it was.
         set({ notice: { kind: 'save-failed' } });
         return;
+      }
+      if (wasCurrent && get().currentProjectId === id) {
+        // Its pending edits went with it; never write them back.
+        clearAutosave();
+        dirty = false;
       }
       lastWritten.delete(id);
       unsaved.delete(id);
