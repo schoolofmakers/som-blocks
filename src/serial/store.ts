@@ -80,8 +80,11 @@ export interface SerialState {
   setBaud: (baud: number) => Promise<void>;
   setPaused: (paused: boolean) => void;
   setAutoscroll: (autoscroll: boolean) => void;
-  /** B8's flashers set this around a flash. */
-  setMuted: (muted: boolean) => void;
+  /**
+   * B8's flashers set this around a flash. Unmuting applies a baud chosen while muted; the
+   * returned promise settles once that reopen is done.
+   */
+  setMuted: (muted: boolean) => Promise<void>;
   /** Everything buffered (also while paused) as plain text, for "download .txt". */
   exportLog: () => string;
 }
@@ -218,7 +221,7 @@ export const useSerialStore = create<SerialState>()((set, get) => {
     setMuted: (muted) => {
       set({ muted });
       // A baud chosen while muted was deferred (see applyBaud): apply the latest one now.
-      if (!muted) void applyBaud();
+      return muted ? Promise.resolve() : applyBaud();
     },
 
     exportLog: () => {

@@ -154,7 +154,9 @@ describe('flash store upload()', () => {
     await useSerialStore.getState().setBaud(9600); // deferred: still muted
     reopened();
     await upload;
-    await vi.waitFor(() => expect(useTransportStore.getState().baudRate).toBe(9600));
+    // upload() unlocks only after the deferred reopen is done: no window for a second flash.
+    expect(useTransportStore.getState().baudRate).toBe(9600);
+    expect(useFlashStore.getState().isFlashing).toBe(false);
     useSerialStore.getState().stop();
     expect(transport.events.slice(-3)).toEqual(['open 115200', 'close', 'open 9600']);
     expect(useTransportStore.getState()).toMatchObject({ status: 'connected', transport });
