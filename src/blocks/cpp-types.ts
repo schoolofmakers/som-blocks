@@ -326,6 +326,24 @@ export function stringInput(
   return usable ? code : `String(${code})`;
 }
 
+/**
+ * Input `name` of `block` as a number (`0` when empty). Text — a text-valued variable that
+ * Blockly lets you plug into any number socket — is converted with `String::toDouble()`, like
+ * Blockly's own Number() coercion, instead of producing `s / 2` that can't compile.
+ */
+export function numberInput(
+  block: Block,
+  generator: ArduinoGenerator,
+  name: string,
+  order: Order,
+): string {
+  if (valueType(block.getInputTargetBlock(name)) === 'String') {
+    const text = stringInput(block, generator, name, Order.POSTFIX, true);
+    return text ? `${text}.toDouble()` : '0';
+  }
+  return generator.valueToCode(block, name, order) || '0';
+}
+
 /** A C++ string literal: `"…"` with `\`, `"`, and control characters escaped. UTF-8 stays as is. */
 export function cppString(text: string): string {
   const escaped = text.replace(/[\\"\n\r\t]/g, (char) => {

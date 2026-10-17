@@ -411,6 +411,18 @@ describe('generator edge cases', () => {
     expect(code).toContain('l = constrainValue(randomInt(n, 20), 0, 10);');
   });
 
+  it('converts a text variable used as a number with toDouble()', () => {
+    const code = generateCode([
+      set('l', text('42')),
+      set('n', {
+        type: 'math_arithmetic',
+        fields: { OP: 'DIVIDE' },
+        inputs: { A: { block: get('l') }, B: { block: num(2) } },
+      }),
+    ]);
+    expect(code).toContain('n = l.toDouble() / 2.0;');
+  });
+
   it('rounds with floor(x + 0.5), never the AVR round() macro', () => {
     const code = generateCode([
       set('n', {

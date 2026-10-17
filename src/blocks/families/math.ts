@@ -1,7 +1,7 @@
 import 'blockly/blocks';
 import * as Blockly from 'blockly/core';
 import { Order } from '../arduino-generator';
-import { variableRef, variableScope, variableType } from '../cpp-types';
+import { numberInput, variableRef, variableScope, variableType } from '../cpp-types';
 import type { BlockFamily, BlockGenerator } from '../types';
 
 // `math` family: Blockly's core math blocks with Arduino C++ generators, plus our own
@@ -39,13 +39,13 @@ const SINGLE: Record<string, (x: string) => string> = {
 const single: BlockGenerator = (block, generator) => {
   const op = block.getFieldValue('OP') as string;
   if (op === 'NEG') {
-    let x = generator.valueToCode(block, 'NUM', Order.UNARY_PREFIX) || '0';
+    let x = numberInput(block, generator, 'NUM', Order.UNARY_PREFIX);
     // `- -1`, never `--1` (the decrement operator).
     if (x.startsWith('-')) x = ` ${x}`;
     return [`-${x}`, Order.UNARY_PREFIX];
   }
   const inner = op === 'SIN' || op === 'COS' || op === 'TAN' ? Order.MULTIPLICATIVE : Order.NONE;
-  const x = generator.valueToCode(block, 'NUM', inner) || '0';
+  const x = numberInput(block, generator, 'NUM', inner);
   const toCode = SINGLE[op] ?? SINGLE.ROOT!;
   return [toCode(x), op.startsWith('A') && op !== 'ABS' ? Order.MULTIPLICATIVE : Order.POSTFIX];
 };
@@ -143,13 +143,13 @@ export const mathFamily: BlockFamily = {
     math_arithmetic: (block, generator) => {
       const op = block.getFieldValue('OP') as string;
       if (op === 'POWER') {
-        const a = generator.valueToCode(block, 'A', Order.NONE) || '0';
-        const b = generator.valueToCode(block, 'B', Order.NONE) || '0';
+        const a = numberInput(block, generator, 'A', Order.NONE);
+        const b = numberInput(block, generator, 'B', Order.NONE);
         return [`pow(${a}, ${b})`, Order.POSTFIX];
       }
       const [operator, order] = ARITHMETIC[op] ?? ARITHMETIC.ADD!;
-      let a = generator.valueToCode(block, 'A', order) || '0';
-      let b = generator.valueToCode(block, 'B', order) || '0';
+      let a = numberInput(block, generator, 'A', order);
+      let b = numberInput(block, generator, 'B', order);
       if (op === 'DIVIDE') {
         // Blockly divides like a calculator (7 / 2 = 3.5); C++ would truncate two integers.
         b = INTEGER_LITERAL.test(b) ? `${b}.0` : `(double)${b}`;
@@ -168,17 +168,17 @@ export const mathFamily: BlockFamily = {
     math_number_property: (block, generator) => {
       const property = block.getFieldValue('PROPERTY') as string;
       if (property === 'PRIME') {
-        const n = generator.valueToCode(block, 'NUMBER_TO_CHECK', Order.NONE) || '0';
+        const n = numberInput(block, generator, 'NUMBER_TO_CHECK', Order.NONE);
         return [`${provideHelper(generator, 'isPrime', isPrimeHelper)}(${n})`, Order.POSTFIX];
       }
       if (property === 'POSITIVE' || property === 'NEGATIVE') {
-        const n = generator.valueToCode(block, 'NUMBER_TO_CHECK', Order.RELATIONAL) || '0';
+        const n = numberInput(block, generator, 'NUMBER_TO_CHECK', Order.RELATIONAL);
         return [`${n} ${property === 'POSITIVE' ? '>' : '<'} 0`, Order.RELATIONAL];
       }
-      const n = generator.valueToCode(block, 'NUMBER_TO_CHECK', Order.NONE) || '0';
+      const n = numberInput(block, generator, 'NUMBER_TO_CHECK', Order.NONE);
       const divisor =
         property === 'DIVISIBLE_BY'
-          ? generator.valueToCode(block, 'DIVISOR', Order.NONE) || '0'
+          ? numberInput(block, generator, 'DIVISOR', Order.NONE)
           : property === 'WHOLE'
             ? '1'
             : '2';
@@ -191,21 +191,21 @@ export const mathFamily: BlockFamily = {
       if (op === 'ROUND') {
         // AVR's round() is a macro that evaluates its argument twice and returns a long;
         // floor(x + 0.5) reads x once and rounds like Blockly (Math.round).
-        const x = generator.valueToCode(block, 'NUM', Order.ADDITIVE) || '0';
+        const x = numberInput(block, generator, 'NUM', Order.ADDITIVE);
         return [`floor(${x} + 0.5)`, Order.POSTFIX];
       }
-      const x = generator.valueToCode(block, 'NUM', Order.NONE) || '0';
+      const x = numberInput(block, generator, 'NUM', Order.NONE);
       return [`${op === 'ROUNDUP' ? 'ceil' : 'floor'}(${x})`, Order.POSTFIX];
     },
     math_modulo: (block, generator) => {
-      const a = generator.valueToCode(block, 'DIVIDEND', Order.NONE) || '0';
-      const b = generator.valueToCode(block, 'DIVISOR', Order.NONE) || '0';
+      const a = numberInput(block, generator, 'DIVIDEND', Order.NONE);
+      const b = numberInput(block, generator, 'DIVISOR', Order.NONE);
       return [`fmod(${a}, ${b})`, Order.POSTFIX];
     },
     math_constrain: (block, generator) => {
-      const value = generator.valueToCode(block, 'VALUE', Order.NONE) || '0';
-      const low = generator.valueToCode(block, 'LOW', Order.NONE) || '0';
-      const high = generator.valueToCode(block, 'HIGH', Order.NONE) || '0';
+      const value = numberInput(block, generator, 'VALUE', Order.NONE);
+      const low = numberInput(block, generator, 'LOW', Order.NONE);
+      const high = numberInput(block, generator, 'HIGH', Order.NONE);
       // Arduino's constrain() is a macro that may evaluate an argument several times: fine
       // for numbers and variables, wrong for a function call or random(). Anything else goes
       // through a helper that reads each value once.
@@ -216,8 +216,8 @@ export const mathFamily: BlockFamily = {
       return [`${helper}(${value}, ${low}, ${high})`, Order.POSTFIX];
     },
     math_random_int: (block, generator) => {
-      const from = generator.valueToCode(block, 'FROM', Order.NONE) || '0';
-      const to = generator.valueToCode(block, 'TO', Order.NONE) || '0';
+      const from = numberInput(block, generator, 'FROM', Order.NONE);
+      const to = numberInput(block, generator, 'TO', Order.NONE);
       if (INTEGER_LITERAL.test(from) && INTEGER_LITERAL.test(to)) {
         // Known bounds: order them now. Blockly includes the upper bound; Arduino's
         // random(min, max) excludes it.
@@ -235,15 +235,15 @@ export const mathFamily: BlockFamily = {
       const variable = variableRef(block, generator, varId);
       if (variableType(block.workspace, varId, variableScope(block, varId)) === 'String') {
         // Text elsewhere made it a String, where `+=` would append. Add as a number instead.
-        const delta = generator.valueToCode(block, 'DELTA', Order.ADDITIVE) || '0';
+        const delta = numberInput(block, generator, 'DELTA', Order.ADDITIVE);
         return `${variable} = String(${variable}.toDouble() + ${delta});\n`;
       }
-      const delta = generator.valueToCode(block, 'DELTA', Order.ASSIGNMENT) || '0';
+      const delta = numberInput(block, generator, 'DELTA', Order.ASSIGNMENT);
       return `${variable} += ${delta};\n`;
     },
     som_math_map: (block, generator) => {
-      const args = ['VALUE', 'FROM_LOW', 'FROM_HIGH', 'TO_LOW', 'TO_HIGH'].map(
-        (name) => generator.valueToCode(block, name, Order.NONE) || '0',
+      const args = ['VALUE', 'FROM_LOW', 'FROM_HIGH', 'TO_LOW', 'TO_HIGH'].map((name) =>
+        numberInput(block, generator, name, Order.NONE),
       );
       return [`map(${args.join(', ')})`, Order.POSTFIX];
     },

@@ -1,7 +1,7 @@
 import 'blockly/blocks';
 import * as Blockly from 'blockly/core';
 import { Order } from '../arduino-generator';
-import { compileError, variableRef, variableScope, variableType } from '../cpp-types';
+import { compileError, numberInput, variableRef, variableScope, variableType } from '../cpp-types';
 import type { BlockFamily } from '../types';
 
 // `control` family: repeat N times, while / until, count with, break / continue — Blockly's
@@ -26,7 +26,7 @@ export const controlFamily: BlockFamily = {
     controls_repeat_ext: (block, generator) => {
       // Name the counter before generating the body, so nesting reads outer → inner.
       const count = generator.nameDB_!.getDistinctName('count', Blockly.Names.NameType.VARIABLE);
-      const times = generator.valueToCode(block, 'TIMES', Order.ASSIGNMENT) || '0';
+      const times = numberInput(block, generator, 'TIMES', Order.ASSIGNMENT);
       const branch = generator.statementToCode(block, 'DO');
       // `long`: an AVR `int` stops at 32767. A computed count is read once, before the loop,
       // so changing it (or a function call in it) inside the loop doesn't change the repeats.
@@ -57,9 +57,11 @@ export const controlFamily: BlockFamily = {
         compileError(generator, block.id, Blockly.Msg['SOM_CONTROL_FOR_NOT_NUMBER'] ?? '');
         return '';
       }
-      const from = generator.valueToCode(block, 'FROM', Order.ASSIGNMENT) || '0';
-      const to = generator.valueToCode(block, 'TO', Order.ASSIGNMENT) || '0';
-      const by = generator.valueToCode(block, 'BY', Order.NONE) || '1';
+      const from = numberInput(block, generator, 'FROM', Order.ASSIGNMENT);
+      const to = numberInput(block, generator, 'TO', Order.ASSIGNMENT);
+      const by = block.getInputTargetBlock('BY')
+        ? numberInput(block, generator, 'BY', Order.NONE)
+        : '1';
       const branch = generator.statementToCode(block, 'DO');
 
       if (NUMBER_LITERAL.test(from) && NUMBER_LITERAL.test(to) && NUMBER_LITERAL.test(by)) {
