@@ -30,6 +30,7 @@ shared typing rule (below); it decides what the starter blocks can safely produc
    | Variables | Blockly's dynamic variables category | — |
    | Listas / Lists | — | create list, length, get/set item (category is full-only) |
    | Funciones / Functions | Blockly's dynamic procedures category | — |
+   | Bluetooth (BLE, ESP32 only) | — | whole category (needs a phone app; C3 track) |
    | Código / Code (raw C++) | — | whole category |
 
 2. **How a user gets `full` in v1:** the URL parameter `?toolbox=full` (like `?lang=`). A real

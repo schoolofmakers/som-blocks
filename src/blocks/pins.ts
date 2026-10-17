@@ -3,6 +3,7 @@
 // calls `setPinProfile()` whenever the selected board changes. Whichever of B4/B5 lands
 // second rebases onto this file and keeps one copy.
 import { esp32c3SuperMini } from '../boards/definitions/esp32c3-supermini';
+import type { Chip } from '../boards/types';
 
 /** A dropdown entry: what the student sees, and the value the generator emits. */
 export type PinOption = readonly [label: string, value: string];
@@ -33,4 +34,15 @@ export function currentPinProfile(): PinProfile {
 
 export function setPinProfile(profile: PinProfile): void {
   current = profile;
+}
+
+let currentChipValue: Chip = esp32c3SuperMini.chip;
+
+/** The selected board's chip family, for blocks that only exist on some chips (BLE, WiFi). */
+export function currentChip(): Chip {
+  return currentChipValue;
+}
+
+export function setCurrentChip(chip: Chip): void {
+  currentChipValue = chip;
 }
