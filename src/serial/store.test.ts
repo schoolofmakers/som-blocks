@@ -130,6 +130,28 @@ describe('serial store', () => {
     expect(transport.opens).toEqual([9600]);
   });
 
+  it('quick baud changes end at the last one chosen', async () => {
+    await useSerialStore.getState().start(transport);
+    const first = useSerialStore.getState().setBaud(9600);
+    const second = useSerialStore.getState().setBaud(115200);
+    await Promise.all([first, second]);
+    expect(useSerialStore.getState().baud).toBe(115200);
+    expect(useTransportStore.getState().baudRate).toBe(115200);
+    expect(transport.baudRate).toBe(115200);
+  });
+
+  it('a new connection does not glue onto the last unfinished line', async () => {
+    await useSerialStore.getState().start(transport);
+    transport.emit('temp:2');
+    transport.unplug();
+    const next = new FakeTransport();
+    useTransportStore.setState({ transport: next, status: 'connected' });
+    await useSerialStore.getState().start(next);
+    next.emit('3\n');
+    await vi.waitFor(() => expect(useSerialStore.getState().lines).toEqual(['temp:2', '3']));
+    expect(useSerialStore.getState().series.series).toEqual([]);
+  });
+
   it('ignores a baud that is not in the list', async () => {
     await useSerialStore.getState().setBaud(1234);
     expect(useSerialStore.getState().baud).toBe(115200);

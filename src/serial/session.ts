@@ -5,9 +5,15 @@ import { useSerialStore } from './store';
 
 function follow(transport: Transport | null): void {
   const serial = useSerialStore.getState();
-  if (transport) void serial.start(transport);
-  // A board that went away already left the "disconnected" notice; keep it.
-  else if (serial.status === 'listening') serial.stop();
+  if (transport) {
+    void serial.start(transport);
+    return;
+  }
+  if (serial.status !== 'listening') return;
+  // The transport store clears `transport` from its own disconnect listener, which runs before
+  // ours: read the reason from it, so an unplug shows the unplug notice, not "connect first".
+  const unplugged = useTransportStore.getState().error?.key === 'UI_CONNECT_ERROR_DISCONNECTED';
+  serial.stop(unplugged ? 'disconnected' : 'idle');
 }
 
 /**

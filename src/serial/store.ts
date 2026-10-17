@@ -69,7 +69,12 @@ export interface SerialState {
   totalLines: number;
   series: PlotSnapshot;
   start: (transport: Transport) => Promise<void>;
-  stop: () => void;
+  /**
+   * Stops listening and keeps the buffer. `'disconnected'` leaves the unplug notice up. The
+   * unfinished line is closed in the log (never parsed for the plot: it may be cut short), so
+   * the next connection does not glue its first bytes onto it.
+   */
+  stop: (status?: 'idle' | 'disconnected') => void;
   send: (text: string, lineEnding: LineEnding) => Promise<void>;
   clear: () => void;
   setBaud: (baud: number) => Promise<void>;
@@ -86,6 +91,9 @@ const parser = new PlotParser();
 let current: Transport | null = null;
 let unsubscribe: (() => void) | null = null;
 let framePending = false;
+// Baud changes run one after the other, each applying the *latest* chosen baud, so a quick
+// 115200 → 9600 → 115200 never ends at 9600 while the picker says 115200.
+let baudChain: Promise<void> = Promise.resolve();
 
 export const useSerialStore = create<SerialState>()((set, get) => {
   const publish = () => {
@@ -103,6 +111,17 @@ export const useSerialStore = create<SerialState>()((set, get) => {
     if (framePending) return;
     framePending = true;
     frame(publish);
+  };
+
+  const applyBaud = (): Promise<void> => {
+    baudChain = baudChain.then(async () => {
+      const transportStore = useTransportStore.getState();
+      const { baud } = get();
+      if (current && transportStore.transport === current && transportStore.baudRate !== baud) {
+        await transportStore.reopen(baud);
+      }
+    });
+    return baudChain;
   };
 
   const onData = (chunk: Uint8Array) => {
@@ -132,26 +151,26 @@ export const useSerialStore = create<SerialState>()((set, get) => {
       const offDisconnect = transport.onDisconnect(() => {
         if (current !== transport) return;
         // Keep the buffer: what the board printed before it went away is often the clue.
-        get().stop();
-        set({ status: 'disconnected' });
+        get().stop('disconnected');
       });
       unsubscribe = () => {
         offData();
         offDisconnect();
       };
       set({ status: 'listening', error: null });
-      const { baud } = get();
-      const transportStore = useTransportStore.getState();
-      if (transportStore.transport === transport && transportStore.baudRate !== baud) {
-        await transportStore.reopen(baud);
-      }
+      await applyBaud();
     },
 
-    stop: () => {
+    stop: (status = 'idle') => {
+      const wasListening = current !== null;
       unsubscribe?.();
       unsubscribe = null;
       current = null;
-      set({ status: 'idle' });
+      if (wasListening) {
+        assembler.finish();
+        schedule();
+      }
+      set({ status });
     },
 
     send: async (text, lineEnding) => {
@@ -183,10 +202,7 @@ export const useSerialStore = create<SerialState>()((set, get) => {
       if (!isBaudRate(baud)) return;
       writeStoredBaud(baud);
       set({ baud });
-      const transportStore = useTransportStore.getState();
-      if (current && transportStore.transport === current && transportStore.baudRate !== baud) {
-        await transportStore.reopen(baud);
-      }
+      await applyBaud();
     },
 
     setPaused: (paused) => {

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useId, useState } from 'react';
 import { t, type Lang } from '../i18n/messages';
+import { PanelErrorBoundary } from './PanelErrorBoundary';
 import { useSerialSession } from './session';
 
 // Bottom panel with the serial monitor and plotter tabs. Always mounted (collapsed or not) so
@@ -99,9 +100,13 @@ export function SerialPanel({ lang }: SerialPanelProps) {
           aria-labelledby={`${id}-tab-${tab}`}
           className="h-80 px-4 pt-2 pb-3"
         >
-          <Suspense fallback={<p className="text-sm text-muted">{t('UI_SERIAL_LOADING', lang)}</p>}>
-            {tab === 'monitor' ? <SerialMonitor lang={lang} /> : <SerialPlotter lang={lang} />}
-          </Suspense>
+          <PanelErrorBoundary lang={lang}>
+            <Suspense
+              fallback={<p className="text-sm text-muted">{t('UI_SERIAL_LOADING', lang)}</p>}
+            >
+              {tab === 'monitor' ? <SerialMonitor lang={lang} /> : <SerialPlotter lang={lang} />}
+            </Suspense>
+          </PanelErrorBoundary>
         </div>
       )}
     </section>

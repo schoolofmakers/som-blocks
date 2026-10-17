@@ -84,7 +84,29 @@ describe('PlotParser', () => {
     const parser = new PlotParser({ maxSeries: 2 });
     expect(parser.push('a:1 b:2 c:3', 0)).toBe(true);
     expect(parser.snapshot().series.map((s) => s.label)).toEqual(['a', 'b']);
-    expect(parser.push('c:3', 1000)).toBe(false);
+  });
+
+  it('admits new labels once old ones scroll out, instead of freezing', () => {
+    const parser = new PlotParser({ maxSeries: 2, maxPoints: 2 });
+    parser.push('a:1 b:2', 0);
+    // Only new labels from now on: time still moves, so a and b leave the window.
+    expect(parser.push('c:3 d:4', 1000)).toBe(true);
+    expect(parser.push('c:5 d:6', 2000)).toBe(true);
+    expect(parser.push('c:7 d:8', 3000)).toBe(true);
+    const { times, series } = parser.snapshot();
+    expect(times).toEqual([2, 3]);
+    expect(series.map((s) => [s.label, s.slot])).toEqual([
+      ['c', 0],
+      ['d', 1],
+    ]);
+  });
+
+  it('keeps a label that keeps arriving as nan in the legend', () => {
+    const parser = new PlotParser({ maxPoints: 2 });
+    parser.push('t:20', 0);
+    parser.push('t:nan', 1000);
+    parser.push('t:nan', 2000);
+    expect(parser.snapshot().series).toEqual([{ label: 't', slot: 0, values: [null, null] }]);
   });
 
   it('snapshots are copies and clear() empties everything', () => {

@@ -58,6 +58,42 @@ describe('LineAssembler', () => {
     expect(lines.partial).toBe('ij');
   });
 
+  it('cuts a long line the same way whether its newline comes in the same chunk or later', () => {
+    const cases = ['abcdefghij\n', 'abcdefgh\n', 'abcdefgh\r\n', 'abcd\r\n'];
+    for (const text of cases) {
+      const whole = new LineAssembler({ maxLineLength: 4 });
+      const expected = whole.push(bytes(text));
+      for (let cut = 1; cut < text.length; cut += 1) {
+        const split = new LineAssembler({ maxLineLength: 4 });
+        const got = [
+          ...split.push(bytes(text.slice(0, cut))),
+          ...split.push(bytes(text.slice(cut))),
+        ];
+        expect(got, `${JSON.stringify(text)} cut at ${cut}`).toEqual(expected);
+      }
+    }
+    expect(new LineAssembler({ maxLineLength: 4 }).push(bytes('abcdefghij\n'))).toEqual([
+      'abcd',
+      'efgh',
+      'ij',
+    ]);
+  });
+
+  it('finish() closes the open line and a half character, so the next one starts fresh', () => {
+    const lines = new LineAssembler();
+    const cb = vi.fn();
+    lines.onLine(cb);
+    lines.push(bytes('temp:2'));
+    lines.push(new Uint8Array([0xc3]));
+    expect(lines.finish()).toBe('temp:2�');
+    expect(lines.partial).toBe('');
+    expect(lines.push(bytes('3\n'))).toEqual(['3']);
+    expect(lines.lines()).toEqual(['temp:2�', '3']);
+    // The cut-short line is not reported as a line (the plotter must not read it).
+    expect(cb.mock.calls).toEqual([['3']]);
+    expect(lines.finish()).toBeNull();
+  });
+
   it('bounds the buffer but counts every line', () => {
     const lines = new LineAssembler({ maxLines: 2 });
     lines.push(bytes('1\n2\n3\n'));

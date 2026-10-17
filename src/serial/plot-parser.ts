@@ -69,12 +69,17 @@ export interface PlotParserOptions {
   maxSeries?: number;
 }
 
+interface TrackedSeries extends PlotSeries {
+  /** Per point: did the label arrive (even as nan/inf)? A gap value is not an absence. */
+  present: boolean[];
+}
+
 /** Keeps the last `maxPoints` plotter lines as aligned series. Pure, DOM-free. */
 export class PlotParser {
   readonly maxPoints: number;
   readonly maxSeries: number;
   private times: number[] = [];
-  private series: PlotSeries[] = [];
+  private series: TrackedSeries[] = [];
 
   constructor({
     maxPoints = DEFAULT_MAX_POINTS,
@@ -92,16 +97,25 @@ export class PlotParser {
     for (const { label, value } of points) {
       const known = this.series.some((s) => s.label === label);
       if (!known) {
-        // More labels than colours would make the chart unreadable: extra labels are ignored.
+        // More labels than colours would make the chart unreadable: extra labels wait until
+        // an old label leaves the window and frees its colour.
         if (this.series.length >= this.maxSeries) continue;
-        this.series.push({ label, slot: this.freeSlot(), values: this.times.map(() => null) });
+        this.series.push({
+          label,
+          slot: this.freeSlot(),
+          values: this.times.map(() => null),
+          present: this.times.map(() => false),
+        });
       }
       row.set(label, value);
     }
-    if (row.size === 0) return false;
+    // Even when none of its labels fit yet, a plot line moves time forward, so labels that
+    // stopped arriving scroll out and make room.
     this.times.push(timeMs / 1000);
-    for (const s of this.series)
-      s.values.push(row.has(s.label) ? (row.get(s.label) ?? null) : null);
+    for (const s of this.series) {
+      s.values.push(row.get(s.label) ?? null);
+      s.present.push(row.has(s.label));
+    }
     this.trim();
     return true;
   }
@@ -109,7 +123,11 @@ export class PlotParser {
   snapshot(): PlotSnapshot {
     return {
       times: this.times.slice(),
-      series: this.series.map((s) => ({ ...s, values: s.values.slice() })),
+      series: this.series.map(({ label, slot, values }) => ({
+        label,
+        slot,
+        values: values.slice(),
+      })),
     };
   }
 
@@ -128,8 +146,11 @@ export class PlotParser {
     const extra = this.times.length - this.maxPoints;
     if (extra <= 0) return;
     this.times.splice(0, extra);
-    for (const s of this.series) s.values.splice(0, extra);
-    // A label that scrolled out of the window entirely frees its slot (and its legend entry).
-    this.series = this.series.filter((s) => s.values.some((v) => v !== null));
+    for (const s of this.series) {
+      s.values.splice(0, extra);
+      s.present.splice(0, extra);
+    }
+    // A label that has not arrived anywhere in the window frees its slot (and legend entry).
+    this.series = this.series.filter((s) => s.present.some(Boolean));
   }
 }

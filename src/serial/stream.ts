@@ -102,6 +102,22 @@ export class LineAssembler {
     return this.append(this.decoder.decode(chunk, { stream: true }));
   }
 
+  /**
+   * Ends the current connection: flushes a half-received character and closes the partial
+   * line into the buffer, so the next connection starts on a fresh line. Returns that line
+   * (or null when nothing was pending); it is not reported to `onLine`, because it may be cut
+   * short and must not be read as a whole line (e.g. a plot value).
+   */
+  finish(): string | null {
+    const tail = this.pending + this.decoder.decode();
+    this.decoder = new TextDecoder('utf-8', { fatal: false });
+    this.pending = '';
+    if (tail === '') return null;
+    this.ring.push(tail);
+    this.total += 1;
+    return tail;
+  }
+
   /** Clears the buffer, the partial line and any half-received character. */
   clear(): void {
     this.decoder = new TextDecoder('utf-8', { fatal: false });
@@ -110,6 +126,9 @@ export class LineAssembler {
     this.total = 0;
   }
 
+  // A line longer than `maxLineLength` (garbage at the wrong baud, a board printing without
+  // newlines) is cut into pieces of that size, so neither the buffer nor a terminal row grows
+  // without bound. The cut is the same whether the newline came in the same chunk or later.
   private append(text: string): string[] {
     const done: string[] = [];
     let start = 0;
@@ -117,18 +136,31 @@ export class LineAssembler {
       const newline = text.indexOf('\n', start);
       if (newline === -1) break;
       this.pending += text.slice(start, newline);
-      this.complete(this.pending.endsWith('\r') ? this.pending.slice(0, -1) : this.pending, done);
+      const line = this.pending.endsWith('\r') ? this.pending.slice(0, -1) : this.pending;
       this.pending = '';
+      this.completeBounded(line, done);
       start = newline + 1;
     }
     this.pending += text.slice(start);
-    // A line that never ends (garbage at the wrong baud, a board printing without newlines)
-    // is cut into pieces so neither the buffer nor the terminal row grows without bound.
-    while (this.pending.length > this.maxLineLength) {
-      this.complete(this.pending.slice(0, this.maxLineLength), done);
-      this.pending = this.pending.slice(this.maxLineLength);
+    // Cut the open line too, but leave a trailing '\r' with its line (its '\n' may be next).
+    const limit = this.maxLineLength;
+    while (
+      this.pending.length > limit &&
+      !(this.pending.length === limit + 1 && this.pending.endsWith('\r'))
+    ) {
+      this.complete(this.pending.slice(0, limit), done);
+      this.pending = this.pending.slice(limit);
     }
     return done;
+  }
+
+  private completeBounded(line: string, done: string[]): void {
+    let rest = line;
+    while (rest.length > this.maxLineLength) {
+      this.complete(rest.slice(0, this.maxLineLength), done);
+      rest = rest.slice(this.maxLineLength);
+    }
+    this.complete(rest, done);
   }
 
   private complete(line: string, done: string[]): void {
