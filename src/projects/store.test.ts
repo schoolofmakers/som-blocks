@@ -298,6 +298,33 @@ describe('projects store', () => {
     expect((await memory.get(id))?.workspace).toEqual(RAW('keep();'));
   });
 
+  it('autosave never writes a project back while it is being deleted', async () => {
+    const memory = new MemoryProjectRepo();
+    resetProjectsStore();
+    await state().init({ repo: memory });
+    const id = state().current!.id;
+    let finishDelete = () => {};
+    const realRemove = memory.remove.bind(memory);
+    vi.spyOn(memory, 'remove').mockImplementationOnce(
+      (target) =>
+        new Promise<void>((resolve) => {
+          finishDelete = () => void realRemove(target).then(resolve);
+        }),
+    );
+    const put = vi.spyOn(memory, 'put');
+
+    state().saveWorkspace(RAW('pending();'));
+    const removing = state().remove(id);
+    state().saveWorkspace(RAW('during();')); // an edit while the delete is in flight
+    await state().flush();
+    expect(put).not.toHaveBeenCalledWith(expect.objectContaining({ id }));
+    finishDelete();
+    await removing;
+    await state().flush();
+    expect(await memory.get(id)).toBeUndefined();
+    expect(state().current?.id).not.toBe(id);
+  });
+
   it('an import that cannot be stored keeps the save warning', async () => {
     vi.spyOn(MemoryProjectRepo.prototype, 'put').mockRejectedValue(new Error('quota'));
     resetProjectsStore();

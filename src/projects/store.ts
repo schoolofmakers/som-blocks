@@ -65,6 +65,8 @@ let defaultName = FALLBACK_PROJECT_NAME;
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 let dirty = false;
 let loadCounter = 0;
+/** Project being deleted: autosave must not write it back while the delete is in flight. */
+let deletingId: string | null = null;
 /** Last written workspace JSON per project, so an unchanged workspace is not rewritten. */
 const lastWritten = new Map<string, string>();
 /**
@@ -305,18 +307,20 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
     remove: async (id) => {
       const wasCurrent = get().currentProjectId === id;
       if (!wasCurrent) await get().flush();
+      // Pause saves of this project while it is deleted (a put queued after the delete
+      // would bring it back); resume them if the delete fails.
+      deletingId = id;
+      clearAutosave();
       try {
         await repo.remove(id);
       } catch {
-        // Still open and still pending: the autosave state is left as it was.
+        deletingId = null;
+        if (dirty) autosaveTimer = setTimeout(() => void get().flush(), AUTOSAVE_DELAY_MS);
         set({ notice: { kind: 'save-failed' } });
         return;
       }
-      if (wasCurrent && get().currentProjectId === id) {
-        // Its pending edits went with it; never write them back.
-        clearAutosave();
-        dirty = false;
-      }
+      deletingId = null;
+      if (get().currentProjectId === id) dirty = false;
       lastWritten.delete(id);
       unsaved.delete(id);
       set({ projects: get().projects.filter((p) => p.id !== id) });
@@ -338,9 +342,9 @@ export const useProjectsStore = create<ProjectsState>()((set, get) => {
     flush: async () => {
       clearAutosave();
       if (!dirty) return;
-      dirty = false;
       const { current } = get();
-      if (!current) return;
+      if (!current || current.id === deletingId) return;
+      dirty = false;
       if (JSON.stringify(current.workspace) === lastWritten.get(current.id)) return;
       const saved = { ...current, updatedAt: Date.now() };
       if (get().current?.id === saved.id) set({ current: saved });
@@ -418,6 +422,7 @@ useBoardStore.subscribe((state, previous) => {
 export function resetProjectsStore(): void {
   clearAutosave();
   dirty = false;
+  deletingId = null;
   initPromise = null;
   defaultName = FALLBACK_PROJECT_NAME;
   lastWritten.clear();
