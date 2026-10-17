@@ -136,6 +136,30 @@ describe('flash store upload()', () => {
     });
   });
 
+  it('a baud change while the port is being reopened is applied once unmuted', async () => {
+    await useSerialStore.getState().start(transport);
+    let reopened: () => void = () => {};
+    transport.open.mockImplementationOnce(
+      ({ baudRate }) =>
+        new Promise<void>((resolve) => {
+          reopened = () => {
+            transport.events.push(`open ${baudRate}`);
+            transport.isOpen = true;
+            resolve();
+          };
+        }),
+    );
+    const upload = useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });
+    await vi.waitFor(() => expect(transport.open).toHaveBeenCalledTimes(1));
+    await useSerialStore.getState().setBaud(9600); // deferred: still muted
+    reopened();
+    await upload;
+    await vi.waitFor(() => expect(useTransportStore.getState().baudRate).toBe(9600));
+    useSerialStore.getState().stop();
+    expect(transport.events.slice(-3)).toEqual(['open 115200', 'close', 'open 9600']);
+    expect(useTransportStore.getState()).toMatchObject({ status: 'connected', transport });
+  });
+
   it("reopens at the serial monitor's baud through the transport store", async () => {
     useSerialStore.setState({ baud: 9600 });
     await useFlashStore.getState().upload({ code: CODE, boardId: BOARD_ID });

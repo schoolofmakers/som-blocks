@@ -215,7 +215,11 @@ export const useSerialStore = create<SerialState>()((set, get) => {
 
     setAutoscroll: (autoscroll) => set({ autoscroll }),
 
-    setMuted: (muted) => set({ muted }),
+    setMuted: (muted) => {
+      set({ muted });
+      // A baud chosen while muted was deferred (see applyBaud): apply the latest one now.
+      if (!muted) void applyBaud();
+    },
 
     exportLog: () => {
       const lines = assembler.lines();
