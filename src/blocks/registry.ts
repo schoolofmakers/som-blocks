@@ -3,7 +3,7 @@ import * as blocklyEn from 'blockly/msg/en';
 import * as blocklyEs from 'blockly/msg/es';
 import { DEFAULT_LANG, type Lang } from '../i18n/messages';
 import { arduinoGenerator } from './arduino-generator';
-import type { BlockFamily, ToolboxItem } from './types';
+import type { BlockFamily, ToolboxItem, ToolboxProfile } from './types';
 
 // Family registry: the only place that writes family data into Blockly's globals
 // (Blockly.Blocks, generator.forBlock, Blockly.Msg). Families stay plain data modules.
@@ -31,24 +31,34 @@ export function registerFamily(family: BlockFamily): void {
   if (existing === family) return;
   if (existing) throw new Error(`Block family "${family.id}" is already registered`);
 
-  for (const def of family.blocks) {
-    const owner = blockOwners.get(def.type);
+  const external = family.externalBlocks ?? [];
+  const declared = new Set([...family.blocks.map((def) => def.type), ...external]);
+  for (const type of declared) {
+    const owner = blockOwners.get(type);
     if (owner) {
-      throw new Error(`Block "${def.type}" of family "${family.id}" is owned by "${owner}"`);
+      throw new Error(`Block "${type}" of family "${family.id}" is owned by "${owner}"`);
     }
-    if (!family.generators[def.type]) {
-      throw new Error(`Block "${def.type}" of family "${family.id}" has no generator`);
+    if (!family.generators[type]) {
+      throw new Error(`Block "${type}" of family "${family.id}" has no generator`);
+    }
+  }
+  for (const type of external) {
+    if (family.blocks.some((def) => def.type === type)) {
+      throw new Error(`Block "${type}" of family "${family.id}" is both defined and external`);
+    }
+    // External blocks come from elsewhere (blockly/blocks); they must already be defined.
+    if (!Blockly.Blocks[type]) {
+      throw new Error(`External block "${type}" of family "${family.id}" is not defined`);
     }
   }
   // A generator for a block the family doesn't declare could overwrite another family's.
-  const declared = new Set(family.blocks.map((def) => def.type));
   for (const type of Object.keys(family.generators)) {
     if (!declared.has(type)) {
       throw new Error(`Generator "${type}" of family "${family.id}" has no block in that family`);
     }
   }
 
-  for (const def of family.blocks) blockOwners.set(def.type, family.id);
+  for (const type of declared) blockOwners.set(type, family.id);
   Blockly.defineBlocksWithJsonArray(family.blocks);
   for (const [type, generate] of Object.entries(family.generators)) {
     arduinoGenerator.forBlock[type] = generate;
@@ -77,12 +87,42 @@ export function applyLocale(lang: Lang): void {
   for (const family of families.values()) applyFamilyMessages(family, lang);
 }
 
-/** Category toolbox assembled from the registered families, in registration order. */
-export function buildToolbox(): Blockly.utils.toolbox.ToolboxInfo {
+/** Drop `fullOnly` items unless the profile is `full`, and strip that key (Blockly's JSON lacks it). */
+function filterToolbox(items: ToolboxItem[], profile: ToolboxProfile): ToolboxItem[] {
+  const result: ToolboxItem[] = [];
+  for (const item of items) {
+    if (item.kind === 'sep') {
+      result.push(item);
+      continue;
+    }
+    const { fullOnly, ...rest } = item;
+    if (fullOnly && profile !== 'full') continue;
+    if (rest.kind === 'category') {
+      const contents = filterToolbox(rest.contents, profile);
+      // A static category left without blocks would open an empty flyout.
+      if (!rest.custom && !contents.some((child) => child.kind !== 'sep')) continue;
+      result.push({ ...rest, contents });
+    } else {
+      result.push(rest);
+    }
+  }
+  return result;
+}
+
+/**
+ * Category toolbox assembled from the registered families, in registration order. The
+ * `starter` profile (default) hides `fullOnly` items; see docs/adr/0001-starter-toolbox.md.
+ */
+export function buildToolbox(
+  profile: ToolboxProfile = 'starter',
+): Blockly.utils.toolbox.ToolboxInfo {
   const contents: ToolboxItem[] = registeredFamilies().flatMap((family) =>
     Array.isArray(family.toolbox) ? family.toolbox : [family.toolbox],
   );
   // Our toolbox types are a strict subset of Blockly's JSON toolbox format; Blockly's own
   // interfaces require every optional key to be present, hence the cast.
-  return { kind: 'categoryToolbox', contents } as unknown as Blockly.utils.toolbox.ToolboxInfo;
+  return {
+    kind: 'categoryToolbox',
+    contents: filterToolbox(contents, profile),
+  } as unknown as Blockly.utils.toolbox.ToolboxInfo;
 }

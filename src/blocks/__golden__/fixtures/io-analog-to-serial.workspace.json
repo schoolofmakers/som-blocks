@@ -28,14 +28,14 @@
                 "id": "pwm",
                 "fields": { "PIN": "9" },
                 "inputs": {
-                  "VALUE": { "block": { "type": "golden_number", "fields": { "NUM": "128" } } }
+                  "VALUE": { "block": { "type": "math_number", "fields": { "NUM": "128" } } }
                 },
                 "next": {
                   "block": {
                     "type": "som_time_delay_ms",
                     "id": "wait",
                     "inputs": {
-                      "MS": { "block": { "type": "golden_number", "fields": { "NUM": "100" } } }
+                      "MS": { "block": { "type": "math_number", "fields": { "NUM": "100" } } }
                     }
                   }
                 }

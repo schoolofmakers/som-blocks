@@ -1,0 +1,155 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "variables_set",
+        "id": "set_l",
+        "x": 20,
+        "y": 20,
+        "fields": { "VAR": { "id": "v_l" } },
+        "inputs": {
+          "VALUE": {
+            "block": {
+              "type": "lists_create_with",
+              "id": "list",
+              "extraState": { "itemCount": 2 },
+              "inputs": {
+                "ADD0": { "block": { "type": "math_number", "id": "n1", "fields": { "NUM": 1 } } },
+                "ADD1": { "block": { "type": "math_number", "id": "n2", "fields": { "NUM": 2 } } }
+              }
+            }
+          }
+        },
+        "next": {
+          "block": {
+            "type": "lists_setIndex",
+            "id": "setfirst",
+            "fields": { "MODE": "SET", "WHERE": "FIRST" },
+            "inputs": {
+              "LIST": {
+                "block": {
+                  "type": "variables_get",
+                  "id": "g_l",
+                  "fields": { "VAR": { "id": "v_l" } }
+                }
+              },
+              "TO": { "block": { "type": "text", "id": "t1", "fields": { "TEXT": "hola" } } }
+            },
+            "next": {
+              "block": {
+                "type": "variables_set",
+                "id": "set_n",
+                "fields": { "VAR": { "id": "v_n" } },
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "math_random_int",
+                      "id": "rnd",
+                      "inputs": {
+                        "FROM": {
+                          "block": {
+                            "type": "variables_get",
+                            "id": "g_m",
+                            "fields": { "VAR": { "id": "v_m" } }
+                          }
+                        },
+                        "TO": {
+                          "block": { "type": "math_number", "id": "n3", "fields": { "NUM": 1 } }
+                        }
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "controls_repeat_ext",
+                    "id": "rep",
+                    "inputs": {
+                      "TIMES": {
+                        "block": {
+                          "type": "variables_get",
+                          "id": "g_n",
+                          "fields": { "VAR": { "id": "v_n" } }
+                        }
+                      },
+                      "DO": {
+                        "block": {
+                          "type": "variables_set",
+                          "id": "set_s",
+                          "fields": { "VAR": { "id": "v_s" } },
+                          "inputs": {
+                            "VALUE": {
+                              "block": {
+                                "type": "logic_ternary",
+                                "id": "tern",
+                                "inputs": {
+                                  "IF": {
+                                    "block": {
+                                      "type": "math_number_property",
+                                      "id": "odd",
+                                      "fields": { "PROPERTY": "ODD" },
+                                      "inputs": {
+                                        "NUMBER_TO_CHECK": {
+                                          "block": {
+                                            "type": "variables_get",
+                                            "id": "g_n2",
+                                            "fields": { "VAR": { "id": "v_n" } }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "THEN": {
+                                    "block": {
+                                      "type": "text",
+                                      "id": "t2",
+                                      "fields": { "TEXT": "impar" }
+                                    }
+                                  },
+                                  "ELSE": {
+                                    "block": {
+                                      "type": "math_arithmetic",
+                                      "id": "mul",
+                                      "fields": { "OP": "MULTIPLY" },
+                                      "inputs": {
+                                        "A": {
+                                          "block": {
+                                            "type": "math_number",
+                                            "id": "n4",
+                                            "fields": { "NUM": 300 }
+                                          }
+                                        },
+                                        "B": {
+                                          "block": {
+                                            "type": "math_number",
+                                            "id": "n5",
+                                            "fields": { "NUM": 300 }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "variables": [
+    { "name": "l", "id": "v_l" },
+    { "name": "n", "id": "v_n" },
+    { "name": "m", "id": "v_m" },
+    { "name": "s", "id": "v_s" }
+  ]
+}

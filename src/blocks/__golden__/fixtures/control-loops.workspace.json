@@ -1,0 +1,116 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "controls_repeat_ext",
+        "id": "rep1",
+        "x": 20,
+        "y": 20,
+        "inputs": {
+          "TIMES": { "shadow": { "type": "math_number", "id": "n3", "fields": { "NUM": 3 } } },
+          "DO": {
+            "block": {
+              "type": "controls_repeat_ext",
+              "id": "rep2",
+              "inputs": {
+                "TIMES": {
+                  "shadow": { "type": "math_number", "id": "n2", "fields": { "NUM": 2 } }
+                },
+                "DO": {
+                  "block": {
+                    "type": "som_raw_statement",
+                    "id": "blink",
+                    "fields": { "CODE": "delay(100);" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "next": {
+          "block": {
+            "type": "controls_for",
+            "id": "for1",
+            "fields": { "VAR": { "id": "var_i" } },
+            "inputs": {
+              "FROM": { "shadow": { "type": "math_number", "id": "f1", "fields": { "NUM": 10 } } },
+              "TO": { "shadow": { "type": "math_number", "id": "t1", "fields": { "NUM": 1 } } },
+              "BY": { "shadow": { "type": "math_number", "id": "b1", "fields": { "NUM": 3 } } },
+              "DO": {
+                "block": {
+                  "type": "controls_flow_statements",
+                  "id": "cont",
+                  "fields": { "FLOW": "CONTINUE" }
+                }
+              }
+            },
+            "next": {
+              "block": {
+                "type": "controls_for",
+                "id": "for2",
+                "fields": { "VAR": { "id": "var_i" } },
+                "inputs": {
+                  "FROM": {
+                    "shadow": { "type": "math_number", "id": "f2", "fields": { "NUM": 1 } }
+                  },
+                  "TO": {
+                    "block": {
+                      "type": "variables_get",
+                      "id": "getn",
+                      "fields": { "VAR": { "id": "var_count" } }
+                    }
+                  },
+                  "BY": { "shadow": { "type": "math_number", "id": "b2", "fields": { "NUM": 1 } } }
+                },
+                "next": {
+                  "block": {
+                    "type": "controls_whileUntil",
+                    "id": "until1",
+                    "fields": { "MODE": "UNTIL" },
+                    "inputs": {
+                      "BOOL": {
+                        "block": {
+                          "type": "logic_compare",
+                          "id": "gt",
+                          "fields": { "OP": "GT" },
+                          "inputs": {
+                            "A": {
+                              "block": {
+                                "type": "variables_get",
+                                "id": "geti",
+                                "fields": { "VAR": { "id": "var_i" } }
+                              }
+                            },
+                            "B": {
+                              "block": {
+                                "type": "math_number",
+                                "id": "five",
+                                "fields": { "NUM": 5 }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "DO": {
+                        "block": {
+                          "type": "controls_flow_statements",
+                          "id": "brk",
+                          "fields": { "FLOW": "BREAK" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "variables": [
+    { "name": "i", "id": "var_i" },
+    { "name": "count", "id": "var_count" }
+  ]
+}

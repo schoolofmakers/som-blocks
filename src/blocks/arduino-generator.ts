@@ -33,6 +33,33 @@ export const Order = {
 export type Order = (typeof Order)[keyof typeof Order];
 
 /**
+ * Identifiers a student's variable or function may not take: C++ keywords, the sketch entry
+ * points, and the Arduino core API our generators call. `nameDB_` renames a clash (`map` →
+ * `map2`). Arduino list after carlosperate/ardublockly blockly/generators/arduino.js.
+ */
+export const RESERVED_WORDS: readonly string[] = [
+  // C++ keywords and literals
+  'alignas,alignof,and,and_eq,asm,auto,bitand,bitor,bool,break,case,catch,char,char16_t',
+  'char32_t,class,compl,const,constexpr,const_cast,continue,decltype,default,delete,do',
+  'double,dynamic_cast,else,enum,explicit,export,extern,false,float,for,friend,goto,if',
+  'inline,int,long,mutable,namespace,new,noexcept,not,not_eq,nullptr,operator,or,or_eq',
+  'private,protected,public,register,reinterpret_cast,return,short,signed,sizeof,static',
+  'static_assert,static_cast,struct,switch,template,this,thread_local,throw,true,try',
+  'typedef,typeid,typename,union,unsigned,using,virtual,void,volatile,wchar_t,while,xor',
+  'xor_eq,NULL',
+  // Sketch entry points and Arduino types / constants
+  'setup,loop,main,boolean,byte,word,String,size_t,uint8_t,int8_t,uint16_t,int16_t',
+  'uint32_t,int32_t,uint64_t,int64_t,HIGH,LOW,INPUT,OUTPUT,INPUT_PULLUP,LED_BUILTIN,PI',
+  'HALF_PI,TWO_PI,DEG_TO_RAD,RAD_TO_DEG,EULER,NAN,INFINITY,Serial,Wire,SPI',
+  // Arduino core functions and the C math functions our generators emit
+  'pinMode,digitalWrite,digitalRead,analogReference,analogRead,analogWrite,tone,noTone',
+  'shiftOut,shiftIn,pulseIn,millis,micros,delay,delayMicroseconds,min,max,abs,constrain',
+  'map,pow,sqrt,sq,sin,cos,tan,asin,acos,atan,atan2,exp,log,log10,fabs,fmod,floor,ceil',
+  'round,random,randomSeed,lowByte,highByte,bitRead,bitWrite,bitSet,bitClear,bit',
+  'attachInterrupt,detachInterrupt,interrupts,noInterrupts,yield',
+].flatMap((line) => line.split(','));
+
+/**
  * Normalise a header to a full `#include` line. Accepts `Wire.h`, `<Wire.h>`, `"my.h"` or
  * `#include <Wire.h>`; returns `null` for an empty header.
  */
@@ -57,6 +84,7 @@ export class ArduinoGenerator extends Blockly.CodeGenerator {
     super(name);
     this.INDENT = '  ';
     this.isInitialized = false;
+    this.addReservedWords(RESERVED_WORDS.join(','));
   }
 
   /** Add an `#include` (deduplicated). See {@link toIncludeLine} for accepted forms. */
@@ -86,6 +114,10 @@ export class ArduinoGenerator extends Blockly.CodeGenerator {
       this.nameDB_ = new Blockly.Names(this.RESERVED_WORDS_);
     }
     this.nameDB_.setVariableMap(workspace.getVariableMap());
+    // Claim the student's variable and function names first, so helper names made with
+    // getDistinctName (loop counters…) are the ones that get a suffix, never theirs.
+    this.nameDB_.populateVariables(workspace);
+    this.nameDB_.populateProcedures(workspace);
     this.isInitialized = true;
   }
 

@@ -1,0 +1,105 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "variables_set",
+        "id": "s1",
+        "x": 20,
+        "y": 20,
+        "fields": { "VAR": { "id": "v_int" } },
+        "inputs": {
+          "VALUE": { "block": { "type": "math_number", "id": "n1", "fields": { "NUM": 5 } } }
+        },
+        "next": {
+          "block": {
+            "type": "variables_set",
+            "id": "s2",
+            "fields": { "VAR": { "id": "v_map" } },
+            "inputs": {
+              "VALUE": {
+                "block": {
+                  "type": "variables_get",
+                  "id": "g1",
+                  "fields": { "VAR": { "id": "v_int" } }
+                }
+              }
+            },
+            "next": {
+              "block": {
+                "type": "variables_set",
+                "id": "s3",
+                "fields": { "VAR": { "id": "v_on" } },
+                "inputs": {
+                  "VALUE": {
+                    "block": { "type": "logic_boolean", "id": "b1", "fields": { "BOOL": "TRUE" } }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "variables_set",
+                    "id": "s4",
+                    "fields": { "VAR": { "id": "v_name" } },
+                    "inputs": {
+                      "VALUE": {
+                        "block": { "type": "text", "id": "t1", "fields": { "TEXT": "SoM" } }
+                      }
+                    },
+                    "next": {
+                      "block": {
+                        "type": "variables_set",
+                        "id": "s5",
+                        "fields": { "VAR": { "id": "v_name" } },
+                        "inputs": {
+                          "VALUE": {
+                            "block": {
+                              "type": "variables_get",
+                              "id": "g2",
+                              "fields": { "VAR": { "id": "v_map" } }
+                            }
+                          }
+                        },
+                        "next": {
+                          "block": {
+                            "type": "variables_set",
+                            "id": "s6",
+                            "fields": { "VAR": { "id": "v_delay" } },
+                            "inputs": {
+                              "VALUE": {
+                                "block": {
+                                  "type": "variables_get",
+                                  "id": "g3",
+                                  "fields": { "VAR": { "id": "v_on" } }
+                                }
+                              }
+                            },
+                            "next": {
+                              "block": {
+                                "type": "variables_set",
+                                "id": "s7",
+                                "fields": { "VAR": { "id": "v_year" } }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "variables": [
+    { "name": "int", "id": "v_int" },
+    { "name": "map", "id": "v_map" },
+    { "name": "encendido", "id": "v_on" },
+    { "name": "nombre", "id": "v_name" },
+    { "name": "delay", "id": "v_delay" },
+    { "name": "año", "id": "v_year" },
+    { "name": "unused", "id": "v_unused" }
+  ]
+}

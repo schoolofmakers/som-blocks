@@ -1,0 +1,106 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "variables_set",
+        "id": "set_notas",
+        "x": 20,
+        "y": 20,
+        "fields": { "VAR": { "id": "v_notas" } },
+        "inputs": {
+          "VALUE": {
+            "block": {
+              "type": "lists_create_with",
+              "id": "list",
+              "extraState": { "itemCount": 3 },
+              "inputs": {
+                "ADD0": {
+                  "block": { "type": "math_number", "id": "n1", "fields": { "NUM": 262 } }
+                },
+                "ADD1": {
+                  "block": { "type": "math_number", "id": "n2", "fields": { "NUM": 294 } }
+                },
+                "ADD2": { "block": { "type": "math_number", "id": "n3", "fields": { "NUM": 330 } } }
+              }
+            }
+          }
+        },
+        "next": {
+          "block": {
+            "type": "lists_setIndex",
+            "id": "setlast",
+            "fields": { "MODE": "SET", "WHERE": "LAST" },
+            "inputs": {
+              "LIST": {
+                "block": {
+                  "type": "variables_get",
+                  "id": "g1",
+                  "fields": { "VAR": { "id": "v_notas" } }
+                }
+              },
+              "TO": { "block": { "type": "math_number", "id": "n4", "fields": { "NUM": 349 } } }
+            },
+            "next": {
+              "block": {
+                "type": "variables_set",
+                "id": "set_nota",
+                "fields": { "VAR": { "id": "v_nota" } },
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "lists_getIndex",
+                      "id": "get2",
+                      "fields": { "MODE": "GET", "WHERE": "FROM_START" },
+                      "inputs": {
+                        "VALUE": {
+                          "block": {
+                            "type": "variables_get",
+                            "id": "g2",
+                            "fields": { "VAR": { "id": "v_notas" } }
+                          }
+                        },
+                        "AT": {
+                          "block": { "type": "math_number", "id": "n5", "fields": { "NUM": 2 } }
+                        }
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "variables_set",
+                    "id": "set_total",
+                    "fields": { "VAR": { "id": "v_total" } },
+                    "inputs": {
+                      "VALUE": {
+                        "block": {
+                          "type": "lists_length",
+                          "id": "len",
+                          "inputs": {
+                            "VALUE": {
+                              "block": {
+                                "type": "variables_get",
+                                "id": "g3",
+                                "fields": { "VAR": { "id": "v_notas" } }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "variables": [
+    { "name": "notas", "id": "v_notas" },
+    { "name": "nota", "id": "v_nota" },
+    { "name": "total", "id": "v_total" }
+  ]
+}

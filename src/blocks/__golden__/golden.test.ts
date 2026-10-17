@@ -2,9 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { esp32c3SuperMini } from '../../boards/definitions/esp32c3-supermini';
 import { uno } from '../../boards/definitions/uno';
 import { setPinProfile, type PinProfile } from '../pins';
-import { registerFamily } from '../registry';
 import { goldenFixtureNames, runGolden } from './harness';
-import { goldenLiteralsFamily } from './test-support';
 
 const fixtures = goldenFixtureNames();
 
@@ -13,8 +11,6 @@ const FIXTURE_PROFILES: Record<string, PinProfile> = {
   'io-builtin-led-c3': esp32c3SuperMini.pins,
 };
 
-registerFamily(goldenLiteralsFamily);
-
 afterEach(() => {
   setPinProfile(uno.pins);
 });
@@ -22,7 +18,21 @@ afterEach(() => {
 describe('golden: workspace JSON → .ino', () => {
   it('has the baseline fixtures', () => {
     expect(fixtures).toEqual(
-      expect.arrayContaining(['empty', 'raw-chain', 'raw-include-and-statement']),
+      expect.arrayContaining([
+        'empty',
+        'raw-chain',
+        'raw-include-and-statement',
+        // One per core family (B3).
+        'logic-if-else',
+        'control-loops',
+        'math-map-random',
+        'text-join-append',
+        'variables-typed',
+        'lists-array',
+        'lists-unsupported',
+        'functions-prototypes',
+        'edge-cases',
+      ]),
     );
   });
 

@@ -4,6 +4,7 @@ import { t, type Lang } from '../i18n/messages';
 import { arduinoGenerator } from './arduino-generator';
 import { registerBuiltInFamilies } from './index';
 import { applyLocale, buildToolbox } from './registry';
+import type { ToolboxProfile } from './types';
 
 // Blockly's sprites and sounds are copied from node_modules/blockly/media into our own
 // bundle by the `blocklyMedia` plugin in vite.config.ts, so the editor never fetches them
@@ -13,9 +14,9 @@ export const BLOCKLY_MEDIA_URL = `${import.meta.env.BASE_URL}blockly-media/`;
 // Wider-than-default scrollbars so a finger can grab them on tablets.
 const SCROLLBAR_THICKNESS = 20;
 
-function workspaceOptions(): Blockly.BlocklyOptions {
+function workspaceOptions(toolboxProfile: ToolboxProfile): Blockly.BlocklyOptions {
   return {
-    toolbox: buildToolbox(),
+    toolbox: buildToolbox(toolboxProfile),
     media: BLOCKLY_MEDIA_URL,
     renderer: 'zelos',
     trashcan: true,
@@ -36,6 +37,8 @@ function workspaceOptions(): Blockly.BlocklyOptions {
 
 interface BlocklyWorkspaceProps {
   lang: Lang;
+  /** Starter (default) or full toolbox; see docs/adr/0001-starter-toolbox.md. */
+  toolboxProfile?: ToolboxProfile;
   /** Called with the full sketch after mount and after every non-UI workspace change. */
   onCodeChange?: (code: string) => void;
   /** Selected board id; a change regenerates the code (pin blocks read the board's pins). */
@@ -70,6 +73,7 @@ function loadState(state: unknown, workspace: Blockly.Workspace): unknown {
 
 export function BlocklyWorkspace({
   lang,
+  toolboxProfile = 'starter',
   onCodeChange,
   boardId,
   load,
@@ -102,7 +106,7 @@ export function BlocklyWorkspace({
     // Rendered block labels are fixed at creation, so a language change re-injects.
     applyLocale(lang);
     Blockly.Scrollbar.scrollbarThickness = SCROLLBAR_THICKNESS;
-    const workspace = Blockly.inject(host, workspaceOptions());
+    const workspace = Blockly.inject(host, workspaceOptions(toolboxProfile));
     workspaceRef.current = workspace;
     if (savedState.current) {
       loadState(savedState.current, workspace);
@@ -132,7 +136,7 @@ export function BlocklyWorkspace({
       workspaceRef.current = null;
       workspace.dispose();
     };
-  }, [lang]);
+  }, [lang, toolboxProfile]);
 
   // Opening another project: swap the blocks in place (no re-inject).
   const loadKey = load?.key;

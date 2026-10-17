@@ -1,16 +1,30 @@
+import { controlFamily } from './families/control';
+import { functionsFamily } from './families/functions';
 import { ioFamily } from './families/io';
+import { listsFamily } from './families/lists';
+import { logicFamily } from './families/logic';
+import { mathFamily } from './families/math';
 import { rawFamily } from './families/raw';
 import { serialFamily } from './families/serial';
+import { textFamily } from './families/text';
 import { timeFamily } from './families/time';
+import { variablesFamily } from './families/variables';
 import { registerFamily } from './registry';
 import type { BlockFamily } from './types';
 
-/** Every family the editor ships, in toolbox order. B3/B4 append here. */
+/** Every family the editor ships, in toolbox order. */
 export const BUILT_IN_FAMILIES: readonly BlockFamily[] = [
+  logicFamily, // Lógica
+  controlFamily, // Control
+  mathFamily, // Matemáticas
+  textFamily, // Texto
+  variablesFamily, // Variables
+  listsFamily, // Listas (full toolbox)
+  functionsFamily, // Funciones
   ioFamily, // Entrada/Salida
   timeFamily, // Tiempo
   serialFamily, // Puerto Serie
-  rawFamily, // Código (always last)
+  rawFamily, // Código (always last, full toolbox)
 ];
 
 export function registerBuiltInFamilies(): void {

@@ -182,7 +182,11 @@ export const ioFamily: BlockFamily = {
       { kind: 'block', type: 'som_io_digital_write' },
       { kind: 'block', type: 'som_io_digital_read' },
       { kind: 'block', type: 'som_io_analog_read' },
-      { kind: 'block', type: 'som_io_analog_write' },
+      {
+        kind: 'block',
+        type: 'som_io_analog_write',
+        inputs: { VALUE: { shadow: { type: 'math_number', fields: { NUM: 128 } } } },
+      },
     ],
   },
   messages: {

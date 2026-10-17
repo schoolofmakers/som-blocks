@@ -3,7 +3,6 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   disposeTestWorkspace,
   generate,
-  goldenLiteralsFamily,
   load,
   setupBody,
   stack,
@@ -13,7 +12,7 @@ import { registerBuiltInFamilies } from '../index';
 import { esp32c3SuperMini } from '../../boards/definitions/esp32c3-supermini';
 import { uno } from '../../boards/definitions/uno';
 import { setPinProfile } from '../pins';
-import { applyLocale, registerFamily } from '../registry';
+import { applyLocale } from '../registry';
 
 const write = (pin: string, state = 'HIGH'): BlockState => ({
   type: 'som_io_digital_write',
@@ -27,7 +26,6 @@ const led = (state: 'ON' | 'OFF'): BlockState => ({
 
 beforeAll(() => {
   registerBuiltInFamilies();
-  registerFamily(goldenLiteralsFamily);
   applyLocale('es');
   // Tests below assume the UNO unless they switch board (the app default is the C3).
   setPinProfile(uno.pins);

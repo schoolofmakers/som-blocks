@@ -13,7 +13,7 @@
             "type": "som_serial_print",
             "id": "print",
             "inputs": {
-              "VALUE": { "block": { "type": "golden_text", "fields": { "TEXT": "Hola" } } }
+              "VALUE": { "block": { "type": "text", "fields": { "TEXT": "Hola" } } }
             },
             "next": {
               "block": {

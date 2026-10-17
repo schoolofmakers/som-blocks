@@ -8,7 +8,7 @@
         "x": 20,
         "y": 20,
         "inputs": {
-          "MS": { "block": { "type": "golden_number", "fields": { "NUM": "1000" } } },
+          "MS": { "block": { "type": "math_number", "fields": { "NUM": "1000" } } },
           "DO": {
             "block": {
               "type": "som_serial_println",
@@ -22,7 +22,7 @@
             "type": "som_time_every",
             "id": "every2",
             "inputs": {
-              "MS": { "block": { "type": "golden_number", "fields": { "NUM": "250" } } },
+              "MS": { "block": { "type": "math_number", "fields": { "NUM": "250" } } },
               "DO": {
                 "block": {
                   "type": "som_io_digital_write",
