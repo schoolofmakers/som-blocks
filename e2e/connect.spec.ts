@@ -14,7 +14,7 @@ test('Connect button opens the connect screen with the support matrix (es)', asy
   await expect(screen).toBeVisible();
   await expect(screen.getByTestId('connect-board')).toHaveText('ESP32-C3 SuperMini');
   await expect(screen.getByTestId('support-usb')).toContainText('Disponible');
-  await expect(screen.getByTestId('support-wifi')).toContainText('Próximamente');
+  await expect(screen.getByTestId('support-wifi')).toContainText('Disponible');
   await expect(screen.getByRole('button', { name: 'Conectar por USB' })).toBeEnabled();
   await expect(screen.getByTestId('support-reason')).toHaveCount(0);
 
@@ -29,5 +29,5 @@ test('connect screen in English follows the selected board', async ({ page }) =>
   const screen = page.getByRole('dialog', { name: 'Connect your board' });
   await expect(screen.getByTestId('connect-board')).toHaveText('Arduino UNO');
   await expect(screen.getByTestId('support-usb')).toContainText('Available');
-  await expect(screen.getByTestId('support-wifi')).toContainText('Coming soon');
+  await expect(screen.getByTestId('support-wifi')).toContainText('Available');
 });

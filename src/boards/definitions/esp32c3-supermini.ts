@@ -9,6 +9,10 @@ export const esp32c3SuperMini: BoardDefinition = {
   fqbn: 'esp32:esp32:esp32c3',
   // USB CDC on boot so Serial goes out the native USB port the SuperMini is plugged into.
   options: { CDCOnBoot: 'cdc' },
+  // "Sube por WiFi" projects (Track D): two 1.9 MB OTA slots instead of the default 1.25 MB,
+  // so a WiFi sketch plus SomLink fits. The board's partition table must match (the resident
+  // firmware is flashed with the same scheme); OTA itself never rewrites the table.
+  otaOptions: { PartitionScheme: 'min_spiffs' },
   chip: 'esp32c3',
   // 921600 is the core's UploadSpeed default; the C3 is native USB-CDC so it is nominal.
   upload: { tool: 'esptool', baud: 921600, bootloaderAddress: 0x0 },

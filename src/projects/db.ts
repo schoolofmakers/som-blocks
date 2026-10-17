@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { toPairing } from '../wifi/pairing';
 import { PROJECT_SCHEMA_VERSION, toSummary, type Project, type ProjectSummary } from './types';
 
 // Pattern: a Dexie subclass declaring its tables, one `version(n).stores()` per schema
@@ -32,6 +33,8 @@ export function migrateProject(record: unknown): Project | null {
   if (typeof r.id !== 'string' || typeof r.name !== 'string') return null;
   if (typeof r.boardId !== 'string') return null;
   const createdAt = typeof r.createdAt === 'number' ? r.createdAt : 0;
+  // A malformed pairing is dropped (the student pairs again), never half-kept.
+  const wifi = r.wifi === undefined ? null : toPairing(r.wifi);
   return {
     id: r.id,
     name: r.name,
@@ -40,6 +43,8 @@ export function migrateProject(record: unknown): Project | null {
     createdAt,
     updatedAt: typeof r.updatedAt === 'number' ? r.updatedAt : createdAt,
     schemaVersion: PROJECT_SCHEMA_VERSION,
+    ...(wifi ? { wifi } : {}),
+    ...(r.uploadOverWifi === true ? { uploadOverWifi: true } : {}),
   };
 }
 

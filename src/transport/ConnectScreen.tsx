@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { boardLabel, getBoard } from '../boards/registry';
 import { useBoardStore } from '../boards/store';
 import { t, type Lang, type MessageKey } from '../i18n/messages';
+import { WifiConnect } from '../wifi/WifiConnect';
 import { portLabel } from './port-label';
 import { useTransportStore, type ConnectionStatus } from './store';
 import { detectSupport } from './support';
@@ -30,7 +31,16 @@ export function ConnectButton({ lang }: ConnectProps) {
   const status = useTransportStore((state) => state.status);
   // The board reset (a native-USB C3 re-enumerates) and is being found again.
   const reconnecting = useTransportStore((state) => state.reconnecting);
+  const overWifi = useTransportStore((state) => state.transport?.kind === 'relay');
+  const presence = useTransportStore((state) => state.presence);
   const [open, setOpen] = useState(false);
+  // Over WiFi the page is connected to the relay; the dot also says whether the board is.
+  const dot = overWifi && presence !== 'online' ? 'bg-warn' : STATUS_DOT[status];
+  const label: MessageKey = reconnecting
+    ? 'UI_CONNECT_STATUS_RECONNECTING'
+    : overWifi && status === 'connected'
+      ? 'UI_CONNECT_STATUS_WIFI'
+      : STATUS_KEYS[status];
   const panelId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -60,10 +70,8 @@ export function ConnectButton({ lang }: ConnectProps) {
         onClick={() => setOpen((value) => !value)}
         className="flex min-h-11 items-center gap-2 rounded-md border border-border bg-bg px-3 py-1 text-sm font-semibold text-fg"
       >
-        <span aria-hidden="true" className={`size-2.5 rounded-full ${STATUS_DOT[status]}`} />
-        <span data-testid="connect-status">
-          {t(reconnecting ? 'UI_CONNECT_STATUS_RECONNECTING' : STATUS_KEYS[status], lang)}
-        </span>
+        <span aria-hidden="true" className={`size-2.5 rounded-full ${dot}`} />
+        <span data-testid="connect-status">{t(label, lang)}</span>
       </button>
       {open && (
         <div
@@ -162,7 +170,7 @@ export function ConnectScreen({ lang, onClose }: ConnectScreenProps) {
             <th scope="row" className="py-1 pr-2 font-normal">
               {t('UI_CONNECT_ROW_WIFI', lang)}
             </th>
-            <td className="py-1 font-semibold text-muted">{t('UI_CONNECT_WIFI_COMING', lang)}</td>
+            <td className="py-1 font-semibold text-ok">{t('UI_CONNECT_WIFI_YES', lang)}</td>
           </tr>
         </tbody>
       </table>
@@ -236,6 +244,8 @@ export function ConnectScreen({ lang, onClose }: ConnectScreenProps) {
           )}
         </>
       )}
+
+      <WifiConnect lang={lang} boardId={boardId} />
 
       {error && (
         <div role="alert" data-testid="connect-error" className="text-danger">

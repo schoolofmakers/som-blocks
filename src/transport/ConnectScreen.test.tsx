@@ -30,7 +30,7 @@ describe('ConnectScreen', () => {
     expect(screen.getByRole('dialog', { name: 'Conectar tu placa' })).toBeInTheDocument();
     expect(screen.getByTestId('connect-board')).toHaveTextContent('ESP32-C3 SuperMini');
     expect(screen.getByTestId('support-usb')).toHaveTextContent('No disponible');
-    expect(screen.getByTestId('support-wifi')).toHaveTextContent('Próximamente');
+    expect(screen.getByTestId('support-wifi')).toHaveTextContent('Disponible');
     expect(screen.getByTestId('support-reason')).toHaveTextContent(
       'Firefox no puede usar USB. Abre el editor en Chrome o Edge.',
     );

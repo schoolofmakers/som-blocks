@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BOARDS, DEFAULT_BOARD_ID, boardLabel, getBoard, isBoardId } from './registry';
-import { fullFqbn } from './types';
+import { fullFqbn, supportsOta } from './types';
 
 const ESP_CHIPS = new Set(['esp32', 'esp32c3', 'esp8266']);
 // arduino-cli: `vendor:arch:board[:opt=val[,opt=val]...]` (pkg/fqbn/fqbn.go).
@@ -112,6 +112,17 @@ describe('fullFqbn', () => {
 
   it('selects the NANO old bootloader', () => {
     expect(fullFqbn(getBoard('nano-old'))).toBe('arduino:avr:nano:cpu=atmega328old');
+  });
+
+  it('adds the OTA options only for "sube por WiFi" on a board that has them', () => {
+    const c3 = getBoard('esp32c3-supermini');
+    expect(fullFqbn(c3, { ota: true })).toBe(
+      'esp32:esp32:esp32c3:CDCOnBoot=cdc,PartitionScheme=min_spiffs',
+    );
+    expect(fullFqbn(c3, { ota: false })).toBe('esp32:esp32:esp32c3:CDCOnBoot=cdc');
+    expect(supportsOta(c3)).toBe(true);
+    expect(supportsOta(getBoard('uno'))).toBe(false);
+    expect(fullFqbn(getBoard('uno'), { ota: true })).toBe('arduino:avr:uno');
   });
 
   it('leaves a board without options bare', () => {

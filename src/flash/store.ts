@@ -27,6 +27,8 @@ export interface UploadError {
 export interface UploadInput {
   code: string;
   boardId: string;
+  /** "Sube por WiFi" project: compiled with the board's OTA options (and SomLink). */
+  ota?: boolean;
 }
 
 interface FlashState {
@@ -52,6 +54,13 @@ const ERROR_KEYS: Record<Exclude<FlashErrorCode, 'sync-failed'>, MessageKey> = {
   cancelled: 'UI_UPLOAD_ERR_CANCELLED',
   'unsupported-board': 'UI_UPLOAD_ERR_UNSUPPORTED',
   transport: 'UI_UPLOAD_ERR_TRANSPORT',
+  'ota-failed': 'UI_UPLOAD_ERR_OTA_FAILED',
+  'ota-lost': 'UI_UPLOAD_ERR_OTA_LOST',
+  'ota-timeout': 'UI_UPLOAD_ERR_OTA_TIMEOUT',
+  'ota-offline': 'UI_UPLOAD_ERR_OTA_OFFLINE',
+  'ota-unauthorized': 'UI_WIFI_ERROR_UNAUTHORIZED',
+  'ota-too-big': 'UI_COMPILE_ERR_TOO_BIG_WIFI',
+  'ota-not-flagged': 'UI_UPLOAD_REASON_OTA_FLAG',
 };
 
 /** The student-facing message; a failed ESP sync gets the BOOT + RESET hint. */
@@ -105,13 +114,16 @@ export const useFlashStore = create<FlashState>()((set, get) => {
   };
 
   /** The compile result for exactly this sketch and board, compiling first if needed. */
-  const currentResult = async (request: CompileRequest): Promise<CompileResult | null> => {
+  const currentResult = async (
+    request: CompileRequest,
+    ota: boolean,
+  ): Promise<CompileResult | null> => {
     const compiled = useCompileStore.getState();
     if (compiled.status === 'ok' && compiled.result && sameRequest(compiled.request, request)) {
       return compiled.result;
     }
     set({ status: 'compiling' });
-    await compiled.run(request);
+    await compiled.run(request, { ota });
     const after = useCompileStore.getState();
     return after.status === 'ok' && sameRequest(after.request, request) ? after.result : null;
   };
@@ -125,29 +137,44 @@ export const useFlashStore = create<FlashState>()((set, get) => {
     log: [],
     error: null,
 
-    upload: async ({ code, boardId }) => {
+    upload: async ({ code, boardId, ota = false }) => {
       const { status } = get();
       if (status === 'compiling' || status === 'flashing' || get().isFlashing) return;
       set({ status: 'idle', phase: null, percent: 0, log: [], error: null });
       const board = getBoard(boardId);
 
-      let flasher;
+      /** The flasher for the connection open *now* (USB → board tool, WiFi → relay OTA). */
+      const flasherFor = (transport: Transport | null) => {
+        // Over WiFi only a "sube por WiFi" build keeps the board updatable (SomLink).
+        if (transport?.kind === 'relay' && !ota) throw new FlashError('ota-not-flagged');
+        return selectFlasher(board, transport?.kind);
+      };
       try {
-        flasher = selectFlasher(board);
+        flasherFor(useTransportStore.getState().transport);
       } catch (error) {
-        fail({ key: 'UI_UPLOAD_ERR_UNSUPPORTED', detail: errorText(error) });
+        const errorCode = error instanceof FlashError ? error.code : 'unsupported-board';
+        fail({ key: uploadErrorKey(errorCode, board), detail: errorText(error) });
         return;
       }
 
-      const result = await currentResult(sketchRequest(code, fullFqbn(board)));
+      const result = await currentResult(sketchRequest(code, fullFqbn(board, { ota })), ota);
       if (!result) {
         fail({ key: 'UI_UPLOAD_ERR_COMPILE' });
         return;
       }
 
+      // Read again after the compile: the student may have switched USB ↔ WiFi meanwhile.
       const { transport, status: link } = useTransportStore.getState();
       if (link !== 'connected' || !transport) {
         fail({ key: 'UI_UPLOAD_ERR_NO_PORT' });
+        return;
+      }
+      let flasher;
+      try {
+        flasher = flasherFor(transport);
+      } catch (error) {
+        const errorCode = error instanceof FlashError ? error.code : 'unsupported-board';
+        fail({ key: uploadErrorKey(errorCode, board), detail: errorText(error) });
         return;
       }
 

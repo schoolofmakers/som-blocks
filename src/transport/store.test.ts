@@ -6,6 +6,7 @@ import {
   installSerial,
   type FakeSerial,
 } from '../test/fake-serial';
+import { FakeRelay, PAIRING, settle } from '../test/fake-relay';
 import { DEFAULT_BAUD_RATE, reconnectTiming, useTransportStore } from './store';
 
 const initial = useTransportStore.getState();
@@ -247,5 +248,75 @@ describe('transport store', () => {
     await useTransportStore.getState().connect('uno');
     await first;
     expect(serial.requestPort).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('transport store over WiFi (relay)', () => {
+  let relay: FakeRelay;
+  let restoreFetch: () => void;
+  let uninstall: () => void;
+
+  beforeEach(() => {
+    useTransportStore.setState(initial, true);
+    relay = new FakeRelay();
+    restoreFetch = relay.install();
+    uninstall = installSerial(fakeSerial(new FakeSerialPort({ usbVendorId: 0x303a })));
+  });
+
+  afterEach(async () => {
+    await useTransportStore.getState().disconnect();
+    restoreFetch();
+    uninstall();
+  });
+
+  it('connects through the relay with the board name and presence', async () => {
+    await useTransportStore.getState().connectRelay(PAIRING);
+    const state = useTransportStore.getState();
+    expect(state.status).toBe('connected');
+    expect(state.transport?.kind).toBe('relay');
+    expect(state.portLabel).toBe('placa-azul');
+    expect(state.presence).toBe('online');
+    await settle();
+    relay.stream.push('offline', { lastSeen: 1 });
+    await settle();
+    expect(useTransportStore.getState().presence).toBe('offline');
+  });
+
+  it('closes an open USB connection first: only one board is ever the upload target', async () => {
+    await useTransportStore.getState().connect('esp32c3-supermini');
+    const usb = useTransportStore.getState().transport!;
+    expect(usb.kind).toBe('web-serial');
+    await useTransportStore.getState().connectRelay(PAIRING);
+    expect(usb.isOpen).toBe(false);
+    expect(useTransportStore.getState().transport?.kind).toBe('relay');
+    // And back: USB replaces WiFi the same way.
+    const wifi = useTransportStore.getState().transport!;
+    await useTransportStore.getState().connect('esp32c3-supermini');
+    expect(wifi.isOpen).toBe(false);
+    expect(useTransportStore.getState().transport?.kind).toBe('web-serial');
+    expect(useTransportStore.getState().presence).toBeNull();
+  });
+
+  it('a refused token is an error asking to pair again', async () => {
+    await useTransportStore.getState().connectRelay({ ...PAIRING, token: 'cd'.repeat(32) });
+    expect(useTransportStore.getState()).toMatchObject({
+      status: 'error',
+      transport: null,
+      error: { key: 'UI_WIFI_ERROR_UNAUTHORIZED' },
+    });
+  });
+
+  it('a baud change does not reopen the relay stream; a closed one reopens', async () => {
+    await useTransportStore.getState().connectRelay(PAIRING);
+    await settle();
+    await useTransportStore.getState().reopen(9600);
+    expect(relay.streams).toHaveLength(1);
+    expect(useTransportStore.getState().baudRate).toBe(9600);
+    const transport = useTransportStore.getState().transport!;
+    await transport.close();
+    await useTransportStore.getState().reopen(115200);
+    await settle();
+    expect(transport.isOpen).toBe(true);
+    expect(relay.streams).toHaveLength(2);
   });
 });

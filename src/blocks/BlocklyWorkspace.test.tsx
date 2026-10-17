@@ -91,6 +91,29 @@ describe('BlocklyWorkspace', () => {
     expect(Blockly.getMainWorkspace()).toBe(workspace);
   });
 
+  it('links SomLink only while the "sube por WiFi" flag is on', () => {
+    const onCodeChange = vi.fn();
+    const { rerender } = render(
+      <BlocklyWorkspace lang="es" onCodeChange={onCodeChange} boardId="esp32c3-supermini" />,
+    );
+    expect(onCodeChange).toHaveBeenLastCalledWith(expect.not.stringContaining('SomLink'));
+    rerender(
+      <BlocklyWorkspace
+        lang="es"
+        onCodeChange={onCodeChange}
+        boardId="esp32c3-supermini"
+        somLink
+      />,
+    );
+    const linked = onCodeChange.mock.lastCall?.[0] as string;
+    expect(linked.startsWith('#include <SomLink.h>')).toBe(true);
+    expect(linked).toContain('void setup() {\n  SomLink.begin();');
+    rerender(
+      <BlocklyWorkspace lang="es" onCodeChange={onCodeChange} boardId="esp32c3-supermini" />,
+    );
+    expect(onCodeChange).toHaveBeenLastCalledWith(expect.not.stringContaining('SomLink'));
+  });
+
   describe('project load / autosave props', () => {
     const raw = (code: string) => ({
       blocks: {

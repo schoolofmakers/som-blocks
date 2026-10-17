@@ -1,6 +1,6 @@
 // The one seam between the editor and a board (_config/architecture.md → Transports).
 // Flashers (B8) and the serial monitor (B9) only ever see this interface; the USB
-// implementation is `WebSerialTransport`, the WiFi one (`RelayTransport`) is Track D.
+// implementation is `WebSerialTransport`, the WiFi one is `RelayTransport` (Track D).
 
 export type TransportKind = 'web-serial' | 'relay';
 
@@ -38,7 +38,11 @@ export type TransportErrorCode =
   | 'open-failed'
   | 'not-open'
   | 'write-failed'
-  | 'disconnected';
+  | 'disconnected'
+  /** WiFi: the relay refused the pairing token (the board made a new one: pair again). */
+  | 'unauthorized'
+  /** WiFi: the relay could not be reached (offline, wrong address, blocked). */
+  | 'unreachable';
 
 export class TransportError extends Error {
   readonly code: TransportErrorCode;

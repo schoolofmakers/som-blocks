@@ -65,18 +65,28 @@ function withHeadlessWorkspace<T>(state: unknown, run: (workspace: Blockly.Works
   }
 }
 
-/** The sketch the generator produces for a stored workspace on a given board. */
-export function generateSketch(workspace: unknown, boardId: string): string {
+/**
+ * The sketch the generator produces for a stored workspace on a given board. `somLink`
+ * links SomLink in (a "sube por WiFi" project on a board that supports it).
+ */
+export function generateSketch(
+  workspace: unknown,
+  boardId: string,
+  { somLink = false }: { somLink?: boolean } = {},
+): string {
   const previous = currentPinProfile();
   const previousChip = currentChip();
+  const previousSomLink = arduinoGenerator.linksSomLink;
   const board = getBoard(boardId);
   setPinProfile(board.pins);
   setCurrentChip(board.chip);
+  arduinoGenerator.setSomLink(somLink);
   try {
     return withHeadlessWorkspace(workspace, (ws) => arduinoGenerator.workspaceToCode(ws));
   } finally {
     setPinProfile(previous);
     setCurrentChip(previousChip);
+    arduinoGenerator.setSomLink(previousSomLink);
   }
 }
 

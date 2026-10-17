@@ -3,7 +3,7 @@ import type { CompileResult } from '../compile/types';
 import type { Transport } from '../transport/types';
 
 // The one seam between the upload orchestration (store.ts) and the board-specific flashers
-// (esptool.ts, avrgirl.ts). A flasher gets a compiled result, the board it is for and the
+// (esptool.ts, avrgirl.ts, relay-ota.ts). A flasher gets a compiled result, the board it is for and the
 // connected transport; it reports progress and log lines and throws `FlashError` on failure.
 
 export type FlashPhase = 'connect' | 'erase' | 'write' | 'verify' | 'reset' | 'done';
@@ -49,7 +49,21 @@ export type FlashErrorCode =
   | 'verify-failed'
   | 'cancelled'
   | 'unsupported-board'
-  | 'transport';
+  | 'transport'
+  /** WiFi (relay OTA): the board reported `failed`; `detail` is its reason. */
+  | 'ota-failed'
+  /** WiFi: the relay lost the build twice (restart/expiry) while the board was online. */
+  | 'ota-lost'
+  /** WiFi: no `running` or `failed` within the upload deadline. */
+  | 'ota-timeout'
+  /** WiFi: the relay does not know the board (off, or not on WiFi). */
+  | 'ota-offline'
+  /** WiFi: the relay refused the pairing token (pair again). */
+  | 'ota-unauthorized'
+  /** WiFi: the app image is over the relay's 2 MB limit. */
+  | 'ota-too-big'
+  /** WiFi: the project is not flagged "sube por WiFi", so the sketch has no SomLink. */
+  | 'ota-not-flagged';
 
 export class FlashError extends Error {
   readonly code: FlashErrorCode;
