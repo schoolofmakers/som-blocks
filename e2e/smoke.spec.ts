@@ -190,3 +190,31 @@ test('WiFi category: connect block on the C3, a translated #error on the UNO', a
   await expect(code).toContainText('#error "Los bloques WiFi solo funcionan en una placa ESP32.');
   await expect(code).not.toContainText('#include <WiFi.h>');
 });
+
+test('ESP-NOW category: name block on the C3, a translated #error on the UNO', async ({ page }) => {
+  await page.goto('/?lang=es');
+  await page.getByRole('treeitem', { name: 'ESP-NOW' }).click();
+  // First flyout block is `mi nombre es [placa1]`.
+  const flyoutBlock = page.locator('.blocklyFlyout .blocklyDraggable').first();
+  await expect(flyoutBlock).toBeVisible();
+  const workspace = page.locator('.blocklyMainBackground');
+  const target = await workspace.boundingBox();
+  const source = await flyoutBlock.boundingBox();
+  if (!target || !source) throw new Error('workspace or flyout block has no box');
+  await page.mouse.move(source.x + 10, source.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  const code = page.getByTestId('generated-code');
+  await expect(code).toContainText('#include <esp_now.h>');
+  await expect(code).toContainText('somEspNowBegin("placa1");');
+  await expect(code).not.toContainText('#error');
+
+  // The UNO has no ESP-NOW: no ESP-NOW code, and the compile fails with a readable message.
+  await page.getByRole('combobox', { name: 'Placa' }).selectOption('uno');
+  await expect(code).toContainText(
+    '#error "Los bloques ESP-NOW solo funcionan en una placa ESP32.',
+  );
+  await expect(code).not.toContainText('esp_now.h');
+});

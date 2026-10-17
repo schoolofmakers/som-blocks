@@ -14,6 +14,8 @@ const FIXTURE_BOARDS: Record<string, BoardDefinition> = {
   'ble-on-receive-echo': esp32c3SuperMini,
   'wifi-connect-and-ip': esp32c3SuperMini,
   'wifi-http-get-print': esp32c3SuperMini,
+  'espnow-name-send-all': esp32c3SuperMini,
+  'espnow-send-to-and-receive-echo': esp32c3SuperMini,
 };
 
 function selectBoard(board: BoardDefinition): void {
@@ -67,6 +69,16 @@ describe('golden: workspace JSON → .ino', () => {
   it('has the wifi fixtures', () => {
     expect(fixtures).toEqual(
       expect.arrayContaining(['wifi-connect-and-ip', 'wifi-http-get-print', 'wifi-on-avr-error']),
+    );
+  });
+
+  it('has the espnow fixtures', () => {
+    expect(fixtures).toEqual(
+      expect.arrayContaining([
+        'espnow-name-send-all',
+        'espnow-send-to-and-receive-echo',
+        'espnow-on-avr-error',
+      ]),
     );
   });
 

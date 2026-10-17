@@ -1,0 +1,32 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_espnow_name",
+        "id": "name",
+        "x": 20,
+        "y": 20,
+        "fields": { "NAME": "placa1" },
+        "next": {
+          "block": {
+            "type": "som_espnow_on_message",
+            "id": "on_any",
+            "fields": { "MODE": "ANY", "NAME": "placa2" },
+            "inputs": {
+              "DO": {
+                "block": {
+                  "type": "som_espnow_send_all",
+                  "id": "send_all",
+                  "inputs": {
+                    "VALUE": { "block": { "type": "som_espnow_msg_value", "id": "value" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

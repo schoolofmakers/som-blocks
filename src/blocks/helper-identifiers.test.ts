@@ -38,15 +38,17 @@ function identifiers(pattern: RegExp): string[] {
 }
 
 // Our helpers: `som…` / `Som…` / `SOM_…`. Library names they use: the ESP32 BLE / WiFi /
-// HTTP classes and constants, and `std` (std::mutex).
+// HTTP classes and constants, `std` (std::mutex), the ESP-IDF ESP-NOW / WiFi API
+// (`esp_…`, `ESP_…`, `WIFI_…`) and the C string functions (`str…`, `mem…`).
 const ourNames = identifiers(/\b(?:som|Som|SOM)[A-Za-z0-9_]*\b/g);
 const libraryNames = identifiers(
-  /\b(?:BLE[A-Za-z0-9_]*|WiFi[A-Za-z]*|HTTP[A-Za-z_]*|WL_[A-Z_]+|std)\b/g,
+  /\b(?:BLE[A-Za-z0-9_]*|WiFi[A-Za-z]*|HTTP[A-Za-z_]*|WL_[A-Z_]+|std|esp_[a-z_]+|ESP_[A-Z_]+|WIFI_[A-Z_]+|str[a-z]+|mem[a-z]+)\b/g,
 );
 
-// Allocated through nameDB_ after the student's names are claimed (time.ts, ble.ts, math.ts):
+// Allocated through nameDB_ after the student's names are claimed (time.ts, ble.ts, espnow.ts,
+// math.ts):
 // they move out of the student's way instead of being reserved (see RESERVED_WORDS).
-const ALLOCATED = /^(?:som_every|som_ble_seen)\d*$/;
+const ALLOCATED = /^(?:som_every|som_ble_seen|som_espnow_read|som_espnow_outer_(?:value|from))\d*$/;
 const fixedNames = ourNames.filter((name) => !ALLOCATED.test(name));
 
 let workspace: Blockly.Workspace | undefined;
@@ -100,10 +102,15 @@ describe('generated helper identifiers', () => {
         'somBleLast',
         'SomBleWriteCallbacks',
         'SOM_BLE_SERVICE_UUID',
+        'somEspNowBegin',
+        'somEspNowSend',
+        'somEspNowNext',
+        'SomEspNowPacket',
+        'SOM_ESPNOW_BROADCAST',
       ]),
     );
     expect(libraryNames).toEqual(
-      expect.arrayContaining(['WiFi', 'HTTPClient', 'BLEDevice', 'std']),
+      expect.arrayContaining(['WiFi', 'HTTPClient', 'BLEDevice', 'std', 'esp_now_send', 'strncpy']),
     );
   });
 

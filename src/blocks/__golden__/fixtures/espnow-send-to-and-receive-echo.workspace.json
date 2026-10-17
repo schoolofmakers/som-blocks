@@ -1,0 +1,118 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_espnow_name",
+        "id": "name",
+        "x": 20,
+        "y": 20,
+        "fields": { "NAME": "eco" },
+        "next": {
+          "block": {
+            "type": "som_espnow_on_message",
+            "id": "on_any",
+            "fields": { "MODE": "ANY", "NAME": "placa2" },
+            "inputs": {
+              "DO": {
+                "block": {
+                  "type": "som_serial_println",
+                  "id": "print",
+                  "inputs": {
+                    "VALUE": { "block": { "type": "som_espnow_msg_value", "id": "value1" } }
+                  },
+                  "next": {
+                    "block": {
+                      "type": "som_espnow_send_to",
+                      "id": "echo",
+                      "inputs": {
+                        "VALUE": {
+                          "block": {
+                            "type": "text_join",
+                            "id": "join",
+                            "extraState": { "itemCount": 2 },
+                            "inputs": {
+                              "ADD0": {
+                                "block": {
+                                  "type": "text",
+                                  "id": "t1",
+                                  "fields": { "TEXT": "eco: " }
+                                }
+                              },
+                              "ADD1": {
+                                "block": { "type": "som_espnow_msg_value", "id": "value2" }
+                              }
+                            }
+                          }
+                        },
+                        "TO": { "block": { "type": "som_espnow_msg_sender", "id": "sender" } }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "next": {
+              "block": {
+                "type": "som_espnow_on_message",
+                "id": "on_named",
+                "fields": { "MODE": "NAME", "NAME": "sensor" },
+                "inputs": {
+                  "DO": {
+                    "block": {
+                      "type": "controls_if",
+                      "id": "if",
+                      "inputs": {
+                        "IF0": {
+                          "block": {
+                            "type": "logic_compare",
+                            "id": "gt",
+                            "fields": { "OP": "GT" },
+                            "inputs": {
+                              "A": {
+                                "block": { "type": "som_espnow_msg_as_number", "id": "num" }
+                              },
+                              "B": {
+                                "block": {
+                                  "type": "math_number",
+                                  "id": "fifty",
+                                  "fields": { "NUM": 50 }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "DO0": {
+                          "block": {
+                            "type": "som_espnow_send_to",
+                            "id": "alert",
+                            "inputs": {
+                              "VALUE": {
+                                "block": {
+                                  "type": "text",
+                                  "id": "t2",
+                                  "fields": { "TEXT": "alto" }
+                                }
+                              },
+                              "TO": {
+                                "block": {
+                                  "type": "text",
+                                  "id": "t3",
+                                  "fields": { "TEXT": "pantalla" }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}
