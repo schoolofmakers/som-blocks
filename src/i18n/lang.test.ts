@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { resolveLang } from './lang';
+import { afterEach, describe, expect, it } from 'vitest';
+import { chooseLang, detectLang, LANG_STORAGE_KEY, resolveLang } from './lang';
 
 describe('resolveLang', () => {
   it('defaults to es with no signals', () => {
@@ -20,5 +20,26 @@ describe('resolveLang', () => {
 
   it('skips unsupported values and falls back to es', () => {
     expect(resolveLang({ search: '?lang=xx', stored: 'fr', browser: 'de-DE' })).toBe('es');
+  });
+});
+
+describe('chooseLang', () => {
+  afterEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('saves the choice so the next load picks it up over the browser language', () => {
+    // jsdom's browser language is en-US.
+    chooseLang('es');
+    expect(window.localStorage.getItem(LANG_STORAGE_KEY)).toBe('es');
+    expect(detectLang()).toBe('es');
+  });
+
+  it('drops ?lang= from the address so a reload keeps the choice', () => {
+    window.history.replaceState(null, '', '/?toolbox=full&lang=es');
+    chooseLang('en');
+    expect(window.location.search).toBe('?toolbox=full');
+    expect(detectLang()).toBe('en');
   });
 });

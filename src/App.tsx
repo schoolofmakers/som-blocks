@@ -8,27 +8,46 @@ import { CompileButton } from './compile/CompileButton';
 import { LogPanel } from './compile/LogPanel';
 import { ServerSettings } from './compile/ServerSettings';
 import { SerialPanel } from './serial/SerialPanel';
+import { chooseLang } from './i18n/lang';
+import { LanguageSwitch } from './i18n/LanguageSwitch';
 import { DEFAULT_LANG, t, type Lang } from './i18n/messages';
 import { ProjectNotice, ProjectsMenu } from './projects/ProjectsMenu';
 import { useProjectsStore } from './projects/store';
 import { ConnectButton } from './transport/ConnectScreen';
 
 interface AppProps {
+  /** Language at startup (src/main.tsx resolves it); the header switch changes it live. */
   lang?: Lang;
   toolboxProfile?: ToolboxProfile;
 }
 
-export function App({ lang = DEFAULT_LANG, toolboxProfile = 'starter' }: AppProps) {
+export function App({ lang: initialLang = DEFAULT_LANG, toolboxProfile = 'starter' }: AppProps) {
+  const [lang, setLang] = useState(initialLang);
   const [code, setCode] = useState('');
   const boardId = useBoardStore((state) => state.boardId);
   const editorLoad = useProjectsStore((state) => state.editorLoad);
   const saveWorkspace = useProjectsStore((state) => state.saveWorkspace);
   const workspaceLoadFailed = useProjectsStore((state) => state.workspaceLoadFailed);
 
-  // Open the last project (or create the first one). init() runs once per page.
+  // New projects are named in the current language, including after a switch. Then open the
+  // last project (or create the first one); init() only loads once per page.
   useEffect(() => {
-    void useProjectsStore.getState().init({ defaultName: t('UI_PROJECT_DEFAULT_NAME', lang) });
+    const projects = useProjectsStore.getState();
+    projects.setDefaultName(t('UI_PROJECT_DEFAULT_NAME', lang));
+    void projects.init();
   }, [lang]);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.title = t('UI_APP_TITLE', lang);
+  }, [lang]);
+
+  // Every string re-renders from `lang`; BlocklyWorkspace relabels its toolbox and blocks in
+  // place on a `lang` change (applyLocale), keeping blocks, undo history and zoom.
+  const changeLang = (next: Lang) => {
+    chooseLang(next);
+    setLang(next);
+  };
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
@@ -43,6 +62,7 @@ export function App({ lang = DEFAULT_LANG, toolboxProfile = 'starter' }: AppProp
           <ServerSettings lang={lang} />
           <CompileButton lang={lang} code={code} boardId={boardId} />
           <ConnectButton lang={lang} />
+          <LanguageSwitch lang={lang} onChange={changeLang} />
         </div>
       </header>
       <ProjectNotice lang={lang} />

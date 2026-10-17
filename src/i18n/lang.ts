@@ -29,6 +29,32 @@ function readStoredLang(): string | null {
   }
 }
 
+/**
+ * Each language's own name (autonym), shown as-is in every UI language so a student can find
+ * their language whatever the screen is in. Names, not flags: a flag is a country.
+ */
+export const LANG_NAMES: Record<Lang, string> = {
+  es: 'Español',
+  en: 'English',
+};
+
+/**
+ * The student picked `lang` in the switch: remember it, and drop a `?lang=` from the address
+ * so a reload keeps the choice (`?lang=` only wins for the page load it came with).
+ */
+export function chooseLang(lang: Lang): void {
+  try {
+    window.localStorage.setItem(LANG_STORAGE_KEY, lang);
+  } catch {
+    // Storage blocked: the switch still works for this page.
+  }
+  const url = new URL(window.location.href);
+  if (url.searchParams.has('lang')) {
+    url.searchParams.delete('lang');
+    window.history.replaceState(window.history.state, '', url);
+  }
+}
+
 export function detectLang(): Lang {
   return resolveLang({
     search: window.location.search,

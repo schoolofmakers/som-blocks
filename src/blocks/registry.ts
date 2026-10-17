@@ -1,7 +1,7 @@
 import * as Blockly from 'blockly/core';
 import * as blocklyEn from 'blockly/msg/en';
 import * as blocklyEs from 'blockly/msg/es';
-import { DEFAULT_LANG, type Lang } from '../i18n/messages';
+import { DEFAULT_LANG, warnMissingTranslation, type Lang } from '../i18n/messages';
 import { arduinoGenerator } from './arduino-generator';
 import type { BlockFamily, ToolboxItem, ToolboxProfile } from './types';
 
@@ -14,8 +14,11 @@ const blockOwners = new Map<string, string>();
 /** Language last passed to applyLocale; families registered later get it immediately. */
 let currentLang: Lang = DEFAULT_LANG;
 
-// Blockly core UI messages (context menus, trashcan, prompts), per app language.
-const coreMessages: Record<Lang, Record<string, string>> = {
+// Blockly core UI messages (context menus, trashcan, prompts), per app language. Typed by
+// `Lang` (from SUPPORTED_LANGS), so a new language does not compile until its
+// `blockly/msg/<lang>` import is added here. Blockly's own locale files are complete: its
+// build fills untranslated keys with English, so there is no gap to fall back over.
+export const BLOCKLY_CORE_MESSAGES: Record<Lang, Record<string, string>> = {
   es: blocklyEs as unknown as Record<string, string>,
   en: blocklyEn as unknown as Record<string, string>,
 };
@@ -68,8 +71,16 @@ export function registerFamily(family: BlockFamily): void {
   applyFamilyMessages(family, currentLang);
 }
 
+/** `es` first, then `lang` over it: a key `lang` lacks keeps its `es` text (dev builds warn). */
 function applyFamilyMessages(family: BlockFamily, lang: Lang): void {
-  Blockly.setLocale({ ...family.messages[DEFAULT_LANG], ...family.messages[lang] });
+  const source = family.messages[DEFAULT_LANG];
+  const translated = family.messages[lang];
+  if (lang !== DEFAULT_LANG) {
+    for (const key of Object.keys(source)) {
+      if (translated[key] === undefined) warnMissingTranslation(`family "${family.id}"`, lang, key);
+    }
+  }
+  Blockly.setLocale({ ...source, ...translated });
 }
 
 export function registeredFamilies(): BlockFamily[] {
@@ -83,7 +94,7 @@ export function registeredFamilies(): BlockFamily[] {
  */
 export function applyLocale(lang: Lang): void {
   currentLang = lang;
-  Blockly.setLocale(coreMessages[lang]);
+  Blockly.setLocale(BLOCKLY_CORE_MESSAGES[lang]);
   for (const family of families.values()) applyFamilyMessages(family, lang);
 }
 

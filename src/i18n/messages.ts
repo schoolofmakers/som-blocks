@@ -1,6 +1,7 @@
-// Seed of the UI message layer (see _config/i18n.md). Flat keys, `es` is the source
-// language and the fallback. Full plumbing (JSON per locale, untranslated-key CI check,
-// language switch) arrives in B11; keep this file to the keys the shell needs.
+// UI message layer (_config/i18n.md). Flat `UI_*` keys, one dictionary per language in
+// SUPPORTED_LANGS; `es` is the source language and the fallback. Block labels live in each
+// block family's `messages`. `pnpm i18n:check` (scripts/check-i18n.ts) fails CI when the
+// dictionaries' key sets differ or a key is unused.
 
 const es = {
   UI_APP_TITLE: 'SoM Blocks',
@@ -131,6 +132,7 @@ const es = {
   UI_SERIAL_ERROR_SEND: 'No se pudo enviar el mensaje.',
   UI_PLOT_EMPTY: 'Aún no hay números. Usa el bloque «graficar» para enviar nombre:valor.',
   UI_PLOT_CHART: 'Gráfico de los valores que envía la placa',
+  UI_LANGUAGE: 'Idioma',
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -265,19 +267,48 @@ const en: Partial<Record<MessageKey, string>> = {
   UI_SERIAL_ERROR_SEND: 'The message could not be sent.',
   UI_PLOT_EMPTY: 'No numbers yet. Use the “plot” block to send name:value.',
   UI_PLOT_CHART: 'Chart of the values the board sends',
+  UI_LANGUAGE: 'Language',
 };
 
+/**
+ * Every language the editor ships. `Lang`, the UI dictionaries below, the language switch and
+ * Blockly's core message map (src/blocks/registry.ts) are all keyed from this one array:
+ * adding a language is one entry here plus its dictionaries (_config/i18n.md → checklist).
+ */
 export const SUPPORTED_LANGS = ['es', 'en'] as const;
 export type Lang = (typeof SUPPORTED_LANGS)[number];
 export const DEFAULT_LANG: Lang = 'es';
 
-const messages: Record<Lang, Partial<Record<MessageKey, string>>> = { es, en };
+/** UI dictionaries per language; a key missing from one falls back to `es` in {@link t}. */
+export const UI_MESSAGES: Record<Lang, Partial<Record<MessageKey, string>>> = { es, en };
 
-export function t(key: MessageKey, lang: Lang = DEFAULT_LANG): string {
-  return messages[lang][key] ?? es[key];
+const warnedMissing = new Set<string>();
+
+/**
+ * Dev-only, once per (scope, language, key): a translation is missing and `es` is shown
+ * instead. Production stays quiet; `pnpm i18n:check` is what blocks the merge.
+ */
+export function warnMissingTranslation(scope: string, lang: Lang, key: string): void {
+  // `import.meta.env` is Vite's; it is absent when scripts load this module under plain Node.
+  if (!import.meta.env?.DEV) return;
+  const id = `${scope}:${lang}:${key}`;
+  if (warnedMissing.has(id)) return;
+  warnedMissing.add(id);
+  console.warn(`[i18n] ${scope} key "${key}" has no "${lang}" translation; showing "es".`);
 }
 
-/** Fills `{name}` placeholders. Interim helper until the B11 message plumbing. */
+// Pattern: microsoft/pxt pxtlib/commonutil.ts `_localize` returns the source string when a
+// translation is missing (`_localizeStrings[s] || s`). Difference: our keys are ids, not the
+// source text, so the fallback is the `es` dictionary, and dev builds name the key that fell
+// back.
+export function t(key: MessageKey, lang: Lang = DEFAULT_LANG): string {
+  const translated = UI_MESSAGES[lang][key];
+  if (translated !== undefined) return translated;
+  if (lang !== DEFAULT_LANG) warnMissingTranslation('UI', lang, key);
+  return es[key];
+}
+
+/** Fills `{name}` placeholders in a message. */
 export function format(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (match, name: string) =>
     name in vars ? String(vars[name]) : match,
