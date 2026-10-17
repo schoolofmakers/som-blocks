@@ -1,0 +1,45 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "som_espnow_name",
+        "id": "name",
+        "x": 20,
+        "y": 20,
+        "fields": { "NAME": "placa1" },
+        "next": {
+          "block": {
+            "type": "som_time_every",
+            "id": "every",
+            "inputs": {
+              "MS": {
+                "shadow": { "type": "math_number", "id": "ms", "fields": { "NUM": 1000 } }
+              },
+              "DO": {
+                "block": {
+                  "type": "som_espnow_send_all",
+                  "id": "send_all",
+                  "inputs": {
+                    "VALUE": {
+                      "block": { "type": "text", "id": "hola", "fields": { "TEXT": "hola" } }
+                    }
+                  },
+                  "next": {
+                    "block": {
+                      "type": "som_espnow_send_all",
+                      "id": "send_millis",
+                      "inputs": {
+                        "VALUE": { "block": { "type": "som_time_millis", "id": "millis" } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

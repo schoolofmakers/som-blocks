@@ -66,6 +66,11 @@ export const RESERVED_WORDS: readonly string[] = [
   'SOM_BLE_CHARACTERISTIC_UUID,SomBleServerCallbacks,SomBleWriteCallbacks,somBleServer',
   'somBleChar,somBleLast,somBleWrites,somBleLock,somBleStart,somBleNotify,somBleReceived',
   'somBleArrived,somBleConnected',
+  // ESP-NOW helpers and globals (families/espnow.ts)
+  'SomEspNowPacket,somEspNowQueue,somEspNowWritten,somEspNowDropped,somEspNowSendFailed',
+  'somEspNowMe,somEspNowLock,somEspNowReady,somEspNowValue,somEspNowFrom,somEspNowCopy',
+  'somEspNowOnRecv,somEspNowOnSent,somEspNowBegin,somEspNowSend,somEspNowNext',
+  'SOM_ESPNOW_BROADCAST,SOM_ESPNOW_CHANNEL,SOM_ESPNOW_QUEUE_SIZE',
   // Not here on purpose: helper names the generators allocate through nameDB_ after the
   // student's names are claimed (som_every, som_ble_seen, isPrime, randomInt,
   // constrainValue). Reserving them would rename the helpers themselves (som_every2…);

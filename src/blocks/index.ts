@@ -1,5 +1,6 @@
 import { bleFamily } from './families/ble';
 import { controlFamily } from './families/control';
+import { espnowFamily } from './families/espnow';
 import { functionsFamily } from './families/functions';
 import { ioFamily } from './families/io';
 import { listsFamily } from './families/lists';
@@ -27,6 +28,7 @@ export const BUILT_IN_FAMILIES: readonly BlockFamily[] = [
   timeFamily, // Tiempo
   serialFamily, // Puerto Serie
   wifiFamily, // WiFi (ESP32 only)
+  espnowFamily, // ESP-NOW (ESP32 only)
   bleFamily, // Bluetooth (full toolbox)
   rawFamily, // Código (always last, full toolbox)
 ];

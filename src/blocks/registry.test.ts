@@ -192,6 +192,7 @@ describe('buildToolbox', () => {
       '%{BKY_SOM_TIME_CATEGORY}',
       '%{BKY_SOM_SERIAL_CATEGORY}',
       '%{BKY_SOM_WIFI_CATEGORY}',
+      '%{BKY_SOM_ESPNOW_CATEGORY}',
     ]);
     expect(categories('starter')).toEqual(categories());
   });
@@ -209,6 +210,7 @@ describe('buildToolbox', () => {
       '%{BKY_SOM_TIME_CATEGORY}',
       '%{BKY_SOM_SERIAL_CATEGORY}',
       '%{BKY_SOM_WIFI_CATEGORY}',
+      '%{BKY_SOM_ESPNOW_CATEGORY}',
       '%{BKY_SOM_BLE_CATEGORY}',
       '%{BKY_SOM_RAW_CATEGORY}',
     ]);
